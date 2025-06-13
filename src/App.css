@@ -218,16 +218,18 @@ canvas {
 
 .ready {
   color: #22c55e;
-  font-weight: bold;
+  font-weight: 700;
   font-size: 1.2rem;
 }
 
 button.ready {
   background: linear-gradient(90deg, #22d3ee 0%, #22c55e 100%);
+  color: #fff !important;
 }
 
 button.ready:hover {
   background: linear-gradient(90deg, #06b6d4 0%, #16a34a 100%);
+  color: #fff !important;
 }
 
 .drawing-card {

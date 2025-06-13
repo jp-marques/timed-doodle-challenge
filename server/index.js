@@ -127,6 +127,13 @@ io.on('connection', (socket) => {
     }
   });
 
+  socket.on('chat-message', ({ code, text, nickname, id, time }) => {
+    if (rooms[code]) {
+      // Broadcast the chat message to all players in the room
+      io.to(code).emit('chat-message', { text, nickname, id, time });
+    }
+  });
+
   socket.on('disconnecting', () => {
     for (const code of socket.rooms) {
       if (rooms[code]) {
