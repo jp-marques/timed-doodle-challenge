@@ -64,8 +64,10 @@ const useAutoSizedCanvas = (
 type DrawingCanvasProps = {
   color: string;
   brushSize: number;
+  selectedTool: 'brush' | 'bucket';
   onChangeColor: (color: string) => void;
   onChangeBrushSize: (size: number) => void;
+  onChangeTool: (tool: 'brush' | 'bucket') => void;
   onClear: () => void;
   onSubmit: () => void;
   canSubmit: boolean;
@@ -86,8 +88,10 @@ type DrawingCanvasProps = {
 function DrawingCanvas({
   color,
   brushSize,
+  selectedTool,
   onChangeColor,
   onChangeBrushSize,
+  onChangeTool,
   onClear,
   onSubmit,
   canSubmit,
@@ -120,22 +124,29 @@ function DrawingCanvas({
   };
 
   const handlePointerDown = (e: React.PointerEvent) => {
-    isDrawing.current = true;
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
     const rect = canvas.getBoundingClientRect();
     const { sx, sy } = getScale();
-    const x = (e.clientX - rect.left) * sx;
-    const y = (e.clientY - rect.top) * sy;
-    ctx.beginPath();
-    ctx.moveTo(x, y);
-    last.current = { x, y };
+    const x = Math.floor((e.clientX - rect.left) * sx);
+    const y = Math.floor((e.clientY - rect.top) * sy);
+    
+    if (selectedTool === 'bucket') {
+      // Handle bucket tool
+      floodFill(x, y, color);
+    } else {
+      // Handle brush tool
+      isDrawing.current = true;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      last.current = { x, y };
+    }
   };
 
   const handlePointerMove = (e: React.PointerEvent) => {
-    if (!isDrawing.current) return;
+    if (!isDrawing.current || selectedTool !== 'brush') return;
     const canvas = canvasRef.current;
     if (!canvas || !last.current) return;
     const ctx = canvas.getContext('2d');
@@ -158,6 +169,76 @@ function DrawingCanvas({
   const handlePointerUp = () => {
     isDrawing.current = false;
     last.current = null;
+  };
+
+  // Flood fill algorithm for bucket tool
+  const floodFill = (startX: number, startY: number, fillColor: string) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const data = imageData.data;
+    
+    // Convert hex color to RGB
+    const hexToRgb = (hex: string) => {
+      const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+      return result ? {
+        r: parseInt(result[1], 16),
+        g: parseInt(result[2], 16),
+        b: parseInt(result[3], 16)
+      } : null;
+    };
+
+    const fillRgb = hexToRgb(fillColor);
+    if (!fillRgb) return;
+
+    const startPos = (startY * canvas.width + startX) * 4;
+    const startR = data[startPos];
+    const startG = data[startPos + 1];
+    const startB = data[startPos + 2];
+    const startA = data[startPos + 3];
+
+    // If the target color is the same as fill color, no need to fill
+    if (startR === fillRgb.r && startG === fillRgb.g && startB === fillRgb.b) {
+      return;
+    }
+
+    const pixelStack = [[startX, startY]];
+    const visited = new Set<string>();
+
+    while (pixelStack.length > 0) {
+      const [x, y] = pixelStack.pop()!;
+      
+      if (x < 0 || x >= canvas.width || y < 0 || y >= canvas.height) continue;
+      
+      const key = `${x},${y}`;
+      if (visited.has(key)) continue;
+      visited.add(key);
+
+      const pos = (y * canvas.width + x) * 4;
+      
+      // Check if this pixel matches the original color
+      if (data[pos] === startR && data[pos + 1] === startG && 
+          data[pos + 2] === startB && data[pos + 3] === startA) {
+        
+        // Fill this pixel
+        data[pos] = fillRgb.r;
+        data[pos + 1] = fillRgb.g;
+        data[pos + 2] = fillRgb.b;
+        data[pos + 3] = 255; // alpha
+
+        // Add adjacent pixels to stack
+        pixelStack.push([x + 1, y]);
+        pixelStack.push([x - 1, y]);
+        pixelStack.push([x, y + 1]);
+        pixelStack.push([x, y - 1]);
+      }
+    }
+
+    ctx.putImageData(imageData, 0, 0);
   };
 
   // Chat scroll ref
@@ -212,6 +293,58 @@ function DrawingCanvas({
         <div style={{ marginBottom: 8, fontWeight: 600, color: '#2563eb', fontSize: 17, textAlign: 'center', width: '100%' }}>
           Drawing Tools
         </div>
+        
+        {/* Tool Selection */}
+        <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 16 }}>
+          <label style={{ fontSize: 14, color: '#334155', fontWeight: 500, marginBottom: 8, display: 'block', textAlign: 'center' }}>
+            Select Tool
+          </label>
+          <div style={{ display: 'flex', gap: 8, width: '100%' }}>
+            <button
+              onClick={() => onChangeTool('brush')}
+              style={{
+                flex: 1,
+                padding: '8px 12px',
+                borderRadius: 8,
+                background: selectedTool === 'brush' ? 'linear-gradient(90deg, #2563eb 0%, #3b82f6 100%)' : '#e0e7ef',
+                color: selectedTool === 'brush' ? '#fff' : '#2563eb',
+                fontWeight: 600,
+                border: 'none',
+                cursor: 'pointer',
+                fontSize: 14,
+                transition: 'all 0.15s',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 4,
+              }}
+            >
+              🖌️ Brush
+            </button>
+            <button
+              onClick={() => onChangeTool('bucket')}
+              style={{
+                flex: 1,
+                padding: '8px 12px',
+                borderRadius: 8,
+                background: selectedTool === 'bucket' ? 'linear-gradient(90deg, #2563eb 0%, #3b82f6 100%)' : '#e0e7ef',
+                color: selectedTool === 'bucket' ? '#fff' : '#2563eb',
+                fontWeight: 600,
+                border: 'none',
+                cursor: 'pointer',
+                fontSize: 14,
+                transition: 'all 0.15s',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 4,
+              }}
+            >
+              🪣 Bucket
+            </button>
+          </div>
+        </div>
+
         <div className="color-picker-outer" style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
           <label style={{ fontSize: 14, color: '#334155', fontWeight: 500, marginBottom: 4, display: 'block', textAlign: 'center' }}>
             Brush Color
@@ -229,45 +362,47 @@ function DrawingCanvas({
             }}
           />
         </div>
-        <div className="brush-size-slider-area" style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-          <label style={{ fontSize: 14, color: '#334155', fontWeight: 500, marginBottom: 4, display: 'block', textAlign: 'center' }}>
-            Brush Size
-          </label>
-          <input
-            type="range"
-            min={2}
-            max={40}
-            value={brushSize}
-            onChange={e => onChangeBrushSize(Number(e.target.value))}
-            className="brush-size-slider"
-            aria-label="Brush size"
-            style={{ width: '100%' }}
-          />
-          <div
-            className="brush-preview-row"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              marginTop: 6,
-              justifyContent: 'center',
-            }}
-          >
-            <div
-              className="brush-preview-circle"
-              style={{
-                width: brushSize,
-                height: brushSize,
-                background: color,
-                borderRadius: '50%',
-                border: '1.5px solid #2563eb33',
-              }}
+        {selectedTool === 'brush' && (
+          <div className="brush-size-slider-area" style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <label style={{ fontSize: 14, color: '#334155', fontWeight: 500, marginBottom: 4, display: 'block', textAlign: 'center' }}>
+              Brush Size
+            </label>
+            <input
+              type="range"
+              min={2}
+              max={40}
+              value={brushSize}
+              onChange={e => onChangeBrushSize(Number(e.target.value))}
+              className="brush-size-slider"
+              aria-label="Brush size"
+              style={{ width: '100%' }}
             />
-            <span className="brush-size-label" style={{ fontSize: 14, color: '#334155' }}>
-              {brushSize}px
-            </span>
+            <div
+              className="brush-preview-row"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                marginTop: 6,
+                justifyContent: 'center',
+              }}
+            >
+              <div
+                className="brush-preview-circle"
+                style={{
+                  width: brushSize,
+                  height: brushSize,
+                  background: color,
+                  borderRadius: '50%',
+                  border: '1.5px solid #2563eb33',
+                }}
+              />
+              <span className="brush-size-label" style={{ fontSize: 14, color: '#334155' }}>
+                {brushSize}px
+              </span>
+            </div>
           </div>
-        </div>
+        )}
         <button
           className="clear-canvas-btn"
           onClick={onClear}
@@ -290,7 +425,12 @@ function DrawingCanvas({
           Clear Canvas
         </button>
         <div style={{ marginTop: 18, fontSize: 13, color: '#64748b', textAlign: 'center', width: '100%' }}>
-          <span>Pick a color and brush size, then draw on the canvas.<br />Click "Clear Canvas" to start over.</span>
+          <span>
+            {selectedTool === 'brush' 
+              ? 'Pick a color and brush size, then draw on the canvas.' 
+              : 'Pick a color and click on the canvas to fill areas.'
+            }<br />Click "Clear Canvas" to start over.
+          </span>
         </div>
         <button
           onClick={onQuit}
@@ -396,7 +536,7 @@ function DrawingCanvas({
             minHeight: 350,
             boxShadow: '0 4px 24px #60a5fa22',
             display: 'block',
-            cursor: 'crosshair',
+            cursor: selectedTool === 'bucket' ? 'pointer' : 'crosshair',
             touchAction: 'none',
           }}
         />
@@ -637,6 +777,7 @@ function App() {
   const [myDrawing, setMyDrawing] = useState<string | null>(null);
   const [brushColor, setBrushColor] = useState('#2563eb');
   const [brushSize, setBrushSize] = useState(8);
+  const [selectedTool, setSelectedTool] = useState<'brush' | 'bucket'>('brush');
   // const isDrawingRef = useRef(false);
   // const lastPoint = useRef<{ x: number; y: number } | null>(null);
 
@@ -1314,8 +1455,10 @@ function App() {
             <DrawingCanvas
               color={brushColor}
               brushSize={brushSize}
+              selectedTool={selectedTool}
               onChangeColor={setBrushColor}
               onChangeBrushSize={setBrushSize}
+              onChangeTool={setSelectedTool}
               onClear={handleClearCanvas}
               onSubmit={handleSubmitDrawing}
               canSubmit={!myDrawing && timer > 0}
