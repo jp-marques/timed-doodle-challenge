@@ -794,17 +794,62 @@ function App() {
     return () => clearInterval(interval);
   }, [view, timer]);
 
+  /* --------------- Validation helpers ---------------- */
+  const validateNickname = (nickname: string): string | null => {
+    const trimmed = nickname.trim();
+    
+    if (!trimmed) {
+      return 'Please enter your nickname';
+    }
+    
+    if (trimmed.length < 2) {
+      return 'Nickname must be at least 2 characters';
+    }
+    
+    if (trimmed.length > 15) {
+      return 'Nickname must be 15 characters or less';
+    }
+    
+    // Check for only whitespace/special characters
+    if (!/^[a-zA-Z0-9\s._-]+$/.test(trimmed)) {
+      return 'Nickname can only contain letters, numbers, spaces, dots, hyphens, and underscores';
+    }
+    
+    // Check for excessive whitespace
+    if (trimmed !== trimmed.replace(/\s+/g, ' ')) {
+      return 'Please avoid excessive spaces in your nickname';
+    }
+    
+    return null; // Valid nickname
+  };
+
   /* --------------- Room helpers ---------------------- */
   const handleStartPlaying = () => {
-    if (!nickname.trim()) {
-      setNicknameError('Please enter your nickname');
+    const error = validateNickname(nickname);
+    if (error) {
+      setNicknameError(error);
       return;
     }
     setNicknameError('');
     setView('host');
   };
 
+  const handleNicknameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setNickname(value);
+    
+    // Clear error immediately if user starts typing valid input
+    if (nicknameError && value.trim().length >= 2) {
+      setNicknameError('');
+    }
+  };
+
   const handleHostRoom = () => {
+    const error = validateNickname(nickname);
+    if (error) {
+      setNicknameError(error);
+      return;
+    }
     setNicknameError('');
     const socket = socketRef.current;
     if (!socket || !nickname) {
@@ -816,10 +861,10 @@ function App() {
       return;
     }
     setLoading(true);
-    socket.emit('host-room', { nickname }, (response: { code?: string; error?: string }) => {
+    socket.emit('host-room', { nickname: nickname.trim() }, (response: { code?: string; error?: string }) => {
       setLoading(false);
       if (response.error || !response.code) {
-        alert(response.error || 'Failed to create room');
+        setNicknameError(response.error || 'Failed to create room');
         return;
       }
       setRoomCode(response.code);
@@ -835,12 +880,20 @@ function App() {
       setJoinError('Please enter a room code');
       return;
     }
+    
+    // Validate nickname before joining
+    const nicknameError = validateNickname(nickname);
+    if (nicknameError) {
+      setJoinError(nicknameError);
+      return;
+    }
+    
     const socket = socketRef.current;
     if (!socket || !nickname || !inputCode) return;
     setLoading(true);
     socket.emit(
       'join-room',
-      { code: inputCode, nickname },
+      { code: inputCode.trim().toUpperCase(), nickname: nickname.trim() },
       (res: { success: boolean; error?: string }) => {
         setLoading(false);
         if (res.success) {
@@ -849,7 +902,7 @@ function App() {
           setChatMessages([]); // Clear chat messages when joining new room
           setView('lobby');
         } else {
-          setJoinError(res.error || 'Room not found');
+          setJoinError(res.error || 'Failed to join room');
         }
       }
     );
@@ -1014,13 +1067,18 @@ function App() {
             <div className="w-full max-w-md mx-auto bg-white/90 rounded-2xl shadow-xl flex flex-col items-center px-8 py-12 gap-8 animate-fade-in">
               <h1 className="text-3xl sm:text-4xl font-extrabold text-blue-700 mb-2 text-center">Timed Doodle Challenge</h1>
               <div className="w-full flex flex-col gap-4 items-center">
-                <input
-                  className={`w-full px-4 py-3 rounded-lg border ${nicknameError ? 'border-red-400' : 'border-blue-200'} focus:ring-2 focus:ring-blue-400 outline-none text-lg transition`}
-                  placeholder="Enter your nickname"
-                  value={nickname}
-                  onChange={(e) => { setNickname(e.target.value); setNicknameError(''); }}
-                  maxLength={15}
-                />
+                <div className="w-full relative">
+                  <input
+                    className={`w-full px-4 py-3 rounded-lg border ${nicknameError ? 'border-red-400' : 'border-blue-200'} focus:ring-2 focus:ring-blue-400 outline-none text-lg transition`}
+                    placeholder="Enter your nickname"
+                    value={nickname}
+                    onChange={handleNicknameChange}
+                    maxLength={15}
+                  />
+                  <div className={`text-right text-xs mt-1 ${nickname.length >= 14 ? 'text-amber-500' : 'text-slate-400'}`}>
+                    {nickname.length}/15 characters
+                  </div>
+                </div>
                 {nicknameError && <div className="w-full text-left text-red-500 text-sm font-medium">{nicknameError}</div>}
                 <button
                   onClick={handleStartPlaying}
