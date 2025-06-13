@@ -23,6 +23,7 @@ type ChatMessage = {
   nickname: string;
   text: string;
   time: number;
+  isSystem?: boolean; // For system messages like round start
 };
 
 /* ─────────────────────────────────────────────────── */
@@ -479,29 +480,50 @@ function DrawingCanvas({
             </div>
           )}
           {chatMessages.map((msg, i) => (
-            <div key={i} style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: msg.id === myId ? 'flex-end' : 'flex-start',
-              gap: 1,
-            }}>
-              <span style={{
-                fontWeight: 600,
-                color: msg.id === myId ? '#38bdf8' : '#2563eb',
-                fontSize: 13,
-                marginBottom: 1,
-              }}>{msg.nickname}</span>
-              <span style={{
-                background: msg.id === myId ? 'linear-gradient(90deg, #bae6fd 0%, #38bdf8 100%)' : '#e0e7ef',
-                color: '#334155',
-                borderRadius: 8,
-                padding: '4px 10px',
-                fontSize: 15,
-                maxWidth: 180,
-                wordBreak: 'break-word',
-                display: 'inline-block',
-              }}>{msg.text}</span>
-            </div>
+            msg.isSystem ? (
+              // System message styling: green, no bubble, centered
+              <div key={i} style={{
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                width: '100%',
+                marginTop: 8,
+                marginBottom: 8,
+              }}>
+                <span style={{
+                  color: '#059669', // Green color
+                  fontWeight: 600,
+                  fontSize: 14,
+                  textAlign: 'center',
+                  fontStyle: 'italic',
+                }}>{msg.text}</span>
+              </div>
+            ) : (
+              // Regular message styling
+              <div key={i} style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: msg.id === myId ? 'flex-end' : 'flex-start',
+                gap: 1,
+              }}>
+                <span style={{
+                  fontWeight: 600,
+                  color: msg.id === myId ? '#38bdf8' : '#2563eb',
+                  fontSize: 13,
+                  marginBottom: 1,
+                }}>{msg.nickname}</span>
+                <span style={{
+                  background: msg.id === myId ? 'linear-gradient(90deg, #bae6fd 0%, #38bdf8 100%)' : '#e0e7ef',
+                  color: '#334155',
+                  borderRadius: 8,
+                  padding: '4px 10px',
+                  fontSize: 15,
+                  maxWidth: 180,
+                  wordBreak: 'break-word',
+                  display: 'inline-block',
+                }}>{msg.text}</span>
+              </div>
+            )
           ))}
           <div ref={chatEndRef} />
         </div>
@@ -644,6 +666,7 @@ function App() {
     setMyDrawing(null);
     setPlayers([]);
     setIsHost(false);
+    setChatMessages([]); // Clear chat messages when leaving room
   };
 
   /* --------------- Socket initialisation -------------- */
@@ -710,6 +733,17 @@ function App() {
       setTimer(duration);
       setMyDrawing(null);
       setView('draw');
+      
+      // Add system message with the prompt
+      const systemMessage: ChatMessage = {
+        id: 'system',
+        nickname: 'System',
+        text: `New round started! Draw: ${prompt}`,
+        time: Date.now(),
+        isSystem: true,
+      };
+      setChatMessages((prev) => [...prev, systemMessage]);
+      
       if (canvasRef.current) {
         const ctx = canvasRef.current.getContext('2d');
         ctx?.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
@@ -790,6 +824,7 @@ function App() {
       }
       setRoomCode(response.code);
       setIsHost(true);
+      setChatMessages([]); // Clear chat messages when joining new room
       setView('lobby');
     });
   };
@@ -811,6 +846,7 @@ function App() {
         if (res.success) {
           setRoomCode(inputCode);
           setIsHost(false);
+          setChatMessages([]); // Clear chat messages when joining new room
           setView('lobby');
         } else {
           setJoinError(res.error || 'Room not found');
@@ -1270,8 +1306,8 @@ function App() {
                 drawings={drawings}
                 players={players}
               />
-              {isHost && (
-                <div className="flex flex-col gap-6 w-full max-w-[340px]">
+              <div className="flex flex-col gap-6 w-full max-w-[340px]">
+                {isHost && (
                   <button
                     onClick={handleStartRound}
                     style={{
@@ -1300,37 +1336,37 @@ function App() {
                   >
                     Start Next Round
                   </button>
-                  <button
-                    onClick={handleBack}
-                    style={{
-                      fontSize: '1.15rem',
-                      fontWeight: 700,
-                      padding: '0.8rem 2.5rem',
-                      borderRadius: 10,
-                      background: 'linear-gradient(90deg, #f87171 0%, #dc2626 100%)',
-                      color: '#fff',
-                      boxShadow: '0 2px 8px #ef444433',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s ease',
-                      width: '100%',
-                      border: 'none',
-                      marginTop: '0.5rem',
-                    }}
-                    onMouseOver={(e) => {
-                      e.currentTarget.style.background = 'linear-gradient(90deg, #ef4444 0%, #b91c1c 100%)';
-                      e.currentTarget.style.transform = 'translateY(-1px)';
-                      e.currentTarget.style.boxShadow = '0 4px 12px #ef444466';
-                    }}
-                    onMouseOut={(e) => {
-                      e.currentTarget.style.background = 'linear-gradient(90deg, #f87171 0%, #dc2626 100%)';
-                      e.currentTarget.style.transform = 'translateY(0)';
-                      e.currentTarget.style.boxShadow = '0 2px 8px #ef444433';
-                    }}
-                  >
-                    Quit Game
-                  </button>
-                </div>
-              )}
+                )}
+                <button
+                  onClick={handleBack}
+                  style={{
+                    fontSize: '1.15rem',
+                    fontWeight: 700,
+                    padding: '0.8rem 2.5rem',
+                    borderRadius: 10,
+                    background: 'linear-gradient(90deg, #f87171 0%, #dc2626 100%)',
+                    color: '#fff',
+                    boxShadow: '0 2px 8px #ef444433',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    width: '100%',
+                    border: 'none',
+                    marginTop: isHost ? '0.5rem' : '0',
+                  }}
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.background = 'linear-gradient(90deg, #ef4444 0%, #b91c1c 100%)';
+                    e.currentTarget.style.transform = 'translateY(-1px)';
+                    e.currentTarget.style.boxShadow = '0 4px 12px #ef444466';
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.background = 'linear-gradient(90deg, #f87171 0%, #dc2626 100%)';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = '0 2px 8px #ef444433';
+                  }}
+                >
+                  Quit Game
+                </button>
+              </div>
             </div>
           </div>
         )}
