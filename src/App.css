@@ -1,0 +1,909 @@
+body, html {
+  min-height: 100vh;
+  min-width: 100vw;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: 'Segoe UI', 'Inter', 'Arial', sans-serif;
+  background: linear-gradient(135deg, #e0e7ff 0%, #f0f9ff 100%) !important;
+}
+
+#root {
+  min-height: 100vh;
+  min-width: 100vw;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  padding: 0;
+}
+
+.container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 3.5rem 2vw 2.5rem 2vw;
+  min-height: 90vh;
+  max-height: 95vh;
+  overflow: hidden;
+  background: rgba(255,255,255,0.93);
+  border-radius: 32px;
+  box-shadow: 0 8px 48px 0 #6366f133, 0 1.5px 8px #60a5fa22;
+  backdrop-filter: blur(8px) saturate(1.2);
+  border: 1.5px solid #e0e7ef;
+  position: relative;
+  transition: box-shadow 0.3s;
+}
+
+header {
+  margin-bottom: 0.7rem !important;
+  width: 100%;
+  text-align: center;
+  position: relative;
+}
+
+header h1 {
+  font-size: 2.2rem !important;
+  margin: 0.2rem 0 0.3rem 0 !important;
+  font-weight: 900;
+  letter-spacing: 0.01em;
+  color: #2563eb;
+  text-shadow: 0 2px 8px #60a5fa22;
+  margin: 0 auto !important;
+  width: 100%;
+  text-align: center;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin: 0 auto 1rem auto;
+}
+
+.draw h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0 0 0.5rem 0;
+  color: #1e293b;
+}
+
+.draw p {
+  margin: 0 0 1rem 0;
+  font-size: 1.1rem;
+  color: #475569;
+}
+
+.menu, .host, .join, .draw, .results {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2.2rem;
+  width: 100%;
+  max-width: 440px;
+  margin: 0 auto;
+  padding: 3.5rem 2vw 2.5rem 2vw;
+  background: rgba(255,255,255,0.93);
+  border-radius: 32px;
+  box-shadow: 0 8px 48px 0 #6366f133, 0 1.5px 8px #60a5fa22;
+  position: relative;
+}
+
+.game-btn {
+  background: linear-gradient(90deg, #38bdf8 0%, #6366f1 100%);
+  color: #fff;
+  opacity: 1;
+  font-weight: 700;
+  box-shadow: 0 2px 12px #60a5fa44;
+  border: none;
+  border-radius: 12px;
+  padding: 0.9rem 2.2rem;
+  font-size: 1.18rem;
+  transition: background 0.2s, box-shadow 0.2s, transform 0.1s;
+  cursor: pointer;
+  margin-top: 0.5rem;
+  margin-bottom: 0.3rem;
+  display: inline-block;
+}
+.game-btn:hover {
+  background: linear-gradient(90deg, #0ea5e9 0%, #4f46e5 100%);
+  box-shadow: 0 4px 18px #6366f144;
+  transform: translateY(-2px) scale(1.04);
+}
+.game-btn:disabled, .game-btn[disabled] {
+  opacity: 0.6;
+  background: linear-gradient(90deg, #cbd5e1 0%, #e0e7ef 100%);
+  color: #64748b;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+input {
+  padding: 0.7rem;
+  font-size: 1.1rem;
+  border-radius: 8px;
+  border: 1.5px solid #bae6fd;
+  background: #f1f5f9;
+  color: #222;
+  transition: border 0.2s;
+  /* Prevent browser dark mode from overriding text color */
+  color-scheme: light;
+}
+input:focus {
+  border: 1.5px solid #38bdf8;
+  outline: none;
+}
+
+input[type="text"] {
+  width: 100%;
+  max-width: 300px;
+  text-align: center;
+}
+
+.back-button {
+  position: absolute;
+  top: 1.2rem;
+  left: 1.2rem;
+  background: #64748b;
+  font-size: 1rem;
+  padding: 0.5rem 1.2rem;
+  border-radius: 6px;
+  color: #fff;
+  z-index: 10;
+  box-shadow: 0 2px 8px #64748b22;
+  opacity: 0.95;
+}
+.back-button:hover {
+  background: #334155;
+  opacity: 1;
+}
+
+.hint {
+  color: #666;
+  font-size: 0.9rem;
+  margin-top: -0.5rem;
+}
+
+.gallery {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  justify-content: center;
+  max-width: 100vw;
+  margin: 1rem 0;
+}
+
+canvas {
+  max-width: 100%;
+  box-shadow: 0 2px 8px #60a5fa22;
+  border-radius: 10px;
+  margin-bottom: 1rem;
+}
+
+.nickname, .lobby {
+  text-align: center;
+}
+
+.actions {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.players-list {
+  background: #f1f5f9;
+  padding: 1.2rem;
+  border-radius: 12px;
+  min-width: 220px;
+  margin: 1rem 0;
+  box-shadow: 0 2px 8px #60a5fa11;
+}
+
+.player {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.7rem 0.2rem;
+  border-bottom: 1px solid #e0e7ef;
+  font-size: 1.1rem;
+}
+
+.player:last-child {
+  border-bottom: none;
+}
+
+.ready {
+  color: #22c55e;
+  font-weight: bold;
+  font-size: 1.2rem;
+}
+
+button.ready {
+  background: linear-gradient(90deg, #22d3ee 0%, #22c55e 100%);
+}
+
+button.ready:hover {
+  background: linear-gradient(90deg, #06b6d4 0%, #16a34a 100%);
+}
+
+.drawing-card {
+  width: 100%;
+  max-width: 520px;
+  margin: 0 auto;
+  background: #fff;
+  border-radius: 1.4rem;
+  box-shadow: 0 4px 20px #60a5fa22;
+  padding: 32px 18px 22px 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  border: 1.5px solid #e0e7ef;
+}
+
+.drawing-card img {
+  width: 100%;
+  max-width: 480px;
+  height: auto;
+  display: block;
+  border-radius: 1rem;
+  background: #fff;
+  margin-bottom: 18px;
+  box-shadow: 0 4px 10px #60a5fa11;
+}
+
+.player-name {
+  font-size: 1rem;
+  color: #64748b;
+  margin: 0;
+  font-weight: 600;
+}
+
+/* Prompt styling */
+.prompt-category {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  font-size: 1.1rem;
+  color: #6366f1;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+.prompt-icon {
+  font-size: 1.5rem;
+}
+
+/* Responsive design */
+@media (max-width: 600px) {
+  .container {
+    justify-content: flex-start;
+    padding-top: 4rem;
+    max-width: 99vw;
+    padding: 0.1rem 0.1rem 0.3rem 0.1rem;
+  }
+  .gallery {
+    gap: 8px;
+  }
+  .drawing-card {
+    min-width: 110px;
+    padding: 0.4rem 0.2rem;
+  }
+  .players-list {
+    min-width: 120px;
+    padding: 0.7rem;
+  }
+  input[type="text"] {
+    max-width: 250px;
+  }
+}
+
+.drawing-canvas-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  background: rgba(236,245,255,0.95);
+  border-radius: 24px;
+  padding: 1.5rem;
+  margin: 0.5rem auto;
+  width: 100%;
+  max-width: 1200px;
+  box-shadow: 0 4px 24px 0 #60a5fa22;
+  border: 1.5px solid #bae6fd;
+  position: relative;
+}
+
+.drawing-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2rem;
+  width: 100%;
+  max-width: 900px;
+  margin: 0 auto 1rem auto;
+  padding: 0.8rem 1.5rem;
+  border-radius: 16px;
+  background: rgba(255,255,255,0.95);
+  box-shadow: 0 2px 8px #60a5fa22;
+  position: relative;
+  z-index: 2;
+}
+
+.color-picker {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  border: 2px solid #bae6fd;
+  background: #fff;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.color-picker:hover {
+  border-color: #38bdf8;
+  transform: scale(1.05);
+}
+
+.brush-size-control {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex: 1;
+  max-width: 300px;
+}
+
+.brush-size-control span {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #475569;
+}
+
+.brush-size-slider {
+  width: 100%;
+  accent-color: #38bdf8;
+  height: 6px;
+  cursor: pointer;
+}
+
+.brush-size-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  background: #38bdf8;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.brush-size-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+  background: #0ea5e9;
+}
+
+.clear-canvas-btn {
+  background: #ef4444;
+  padding: 0.6rem 1.2rem;
+  font-size: 1rem;
+  font-weight: 600;
+  border-radius: 10px;
+  color: #fff;
+  border: none;
+  box-shadow: 0 2px 6px #ef444422;
+  transition: all 0.2s ease;
+}
+
+.clear-canvas-btn:hover {
+  background: #dc2626;
+  transform: translateY(-1px) scale(1.05);
+  box-shadow: 0 4px 12px #ef444433;
+}
+
+/* Remove unnecessary elements */
+.brush-style-select, .brush-size-label, .brush-preview-label {
+  display: none !important;
+}
+
+.drawing-canvas-area canvas {
+  width: 100%;
+  aspect-ratio: 16/9;
+  height: auto;
+  max-height: 70vh;
+  min-height: 400px;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 2px 12px #60a5fa22;
+  border: 2px solid #bae6fd;
+  margin: 0 auto;
+  display: block;
+  z-index: 1;
+  cursor: crosshair;
+}
+
+/* --- Drawing controls layout fix --- */
+.brush-size-slider-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  min-width: 120px;
+  width: 140px;
+}
+.brush-preview-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.2rem;
+  min-height: 32px;
+}
+.brush-preview-circle {
+  border-radius: 50%;
+  border: 2px solid #e0e7ef;
+  box-shadow: 0 1px 4px #60a5fa33;
+  background: #2563eb;
+  transition: width 0.1s, height 0.1s;
+}
+.brush-size-label {
+  font-size: 13px;
+  color: #64748b;
+  min-width: 32px;
+  text-align: left;
+}
+
+/* --- Make container scrollable if needed --- */
+.container {
+  overflow-y: auto;
+  max-height: 100vh;
+  min-height: 0;
+  padding-bottom: 2rem;
+}
+
+/* --- Drawing canvas area fix --- */
+.draw-canvas-root {
+  min-height: unset;
+  max-width: 1100px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 1.2rem 0.5rem 1.5rem 0.5rem;
+  box-sizing: border-box;
+  overflow: visible;
+}
+.canvas-area-outer {
+  width: 100%;
+  max-width: 900px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+.drawing-canvas {
+  width: 100%;
+  max-width: 900px;
+  aspect-ratio: 16/9;
+  min-height: 220px;
+  max-height: 60vh;
+  display: block;
+  margin: 0 auto;
+  border-radius: 18px;
+  border: 2.5px solid #bae6fd;
+  box-shadow: 0 4px 24px #60a5fa22;
+  background: #fff;
+  cursor: crosshair;
+  touch-action: none;
+}
+
+/* Responsive: allow scrolling on mobile */
+@media (max-width: 900px) {
+  .draw-canvas-root {
+    padding: 0.7rem 0.1rem 1rem 0.1rem;
+  }
+  .drawing-canvas {
+    min-height: 120px;
+    border-radius: 10px;
+    max-height: 40vh;
+  }
+}
+
+/* --- DARK MODE --- */
+@media (prefers-color-scheme: dark) {
+  /* Container and navigation elements */
+  .container {
+    background: rgba(255, 255, 255, 0.95) !important;
+  }
+  
+  /* Menu and text elements - ensuring all text is dark for light background */
+  .menu h1, .menu p,
+  .host h1, .host p, .host h2,
+  .join h1, .join p,
+  .results h1, .results p,
+  .draw h1, .draw h2, .draw p,
+  .hint, .logo, .nickname, .lobby,
+  .player-name, .time-left,
+  .players-list, .player {
+    color: #1e293b !important;
+  }
+
+  /* Game controls and canvas */
+  .drawing-canvas-area,
+  .drawing-controls {
+    background: rgba(255, 255, 255, 0.95) !important;
+    color: #1e293b !important;
+    box-shadow: 0 4px 24px 0 #60a5fa22;
+    border: 1.5px solid #bae6fd;
+  }
+
+  /* Game lobby elements */
+  .game-lobby {
+    background: rgba(236,245,255,0.97) !important;
+    backdrop-filter: blur(18px) saturate(1.7) brightness(0.95);
+    border: 0px solid #6366f1;
+  }
+
+  .game-lobby h2 {
+    color: #1e293b !important;
+  }
+
+  .room-code {
+    color: #3b82f6 !important;
+  }
+
+  /* Player status and ready indicator */
+  .ready {
+    color: #16a34a !important;
+  }
+
+  .players-list {
+    background: #f8fafc !important;
+  }
+
+  /* Input elements */
+  input::placeholder {
+    color: #64748b !important;
+  }
+
+  input {
+    background: #fff !important;
+    color: #1e293b !important;
+    border-color: #bae6fd !important;
+  }
+
+  /* Maintain white text on buttons */
+  button:not(.clear-canvas-btn) {
+    color: #fff !important;
+  }
+
+  /* Drawing control specific elements */
+  .brush-size-control {
+    color: #1e293b !important;
+  }
+}
+
+/* --- ENHANCED GLASSMORPHISM --- */
+.container {
+  backdrop-filter: blur(14px) saturate(1.5) brightness(1.08);
+  border-radius: 36px;
+  border: 2px solid #bae6fd;
+}
+@media (prefers-color-scheme: dark) {
+  .container {
+    backdrop-filter: blur(18px) saturate(1.7) brightness(0.95);
+    border: 0px solid #6366f1;
+  }
+}
+
+/* --- COLORFUL GAME-LIKE PROMPT CATEGORY --- */
+.prompt-category {
+  background: linear-gradient(90deg, #f472b6 0%, #60a5fa 100%);
+  color: #fff !important;
+  border-radius: 8px;
+  padding: 0.2rem 1rem;
+  box-shadow: 0 2px 8px #60a5fa33;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-shadow: 0 2px 8px #6366f1aa;
+}
+@media (prefers-color-scheme: dark) {
+  .prompt-category {
+    background: linear-gradient(90deg, #f472b6 0%, #6366f1 100%);
+    color: #fff !important;
+    box-shadow: 0 2px 12px #6366f1cc;
+  }
+}
+
+/* --- POLISH: LAYOUT, CONTRAST, VISUALS --- */
+.menu, .host, .join, .draw, .results {
+  gap: 1.3rem;
+}
+.drawing-canvas-area {
+  margin-top: 0.5rem;
+  margin-bottom: 1.2rem;
+}
+.drawing-controls {
+  background: rgba(236,245,255,0.7);
+  border-radius: 12px;
+  padding: 0.7rem 1vw;
+  box-shadow: 0 2px 8px #60a5fa22;
+}
+@media (prefers-color-scheme: dark) {
+  .drawing-controls {
+    background: rgba(36,41,70,0.85);
+    box-shadow: 0 2px 8px #6366f122;
+  }
+}
+
+/* Game Lobby styling improvements */
+.game-lobby {
+  width: 100%;
+  max-width: 1100px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: rgba(236,245,255,0.97);
+  border-radius: 28px;
+  box-shadow: 0 4px 32px #60a5fa22;
+  padding: 2.2rem 1.5rem 2.5rem 1.5rem;
+  position: relative;
+  min-height: 70vh;
+}
+
+.game-lobby h2 {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin-bottom: 1.5rem;
+}
+
+.room-code {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #3b82f6;
+  margin: 1rem 0;
+}
+
+/* Dark mode for game lobby */
+@media (prefers-color-scheme: dark) {
+  .game-lobby {
+    background: rgba(236,245,255,0.97) !important;
+    backdrop-filter: blur(18px) saturate(1.7) brightness(0.95);
+    border: 1.5px solid #bae6fd !important;
+    box-shadow: 0 4px 24px 0 #60a5fa22 !important;
+  }
+
+  .game-lobby h2 {
+    color: #1e293b !important;
+  }
+
+  .room-code {
+    color: #3b82f6 !important;
+  }
+}
+
+.draw-canvas-root {
+  width: 100%;
+  max-width: 1100px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: rgba(236,245,255,0.97);
+  border-radius: 28px;
+  box-shadow: 0 4px 32px #60a5fa22;
+  padding: 2.2rem 1.5rem 2.5rem 1.5rem;
+  position: relative;
+  min-height: 70vh;
+}
+
+.draw-header {
+  width: 100%;
+  text-align: center;
+  margin-bottom: 1.2rem;
+}
+.draw-header h2 {
+  font-size: 1.7rem;
+  font-weight: 800;
+  color: #1e293b;
+  margin: 0.2rem 0 0.7rem 0;
+}
+.draw-prompt {
+  font-size: 1.2rem;
+  color: #334155;
+  margin-bottom: 0.4rem;
+}
+.draw-timer {
+  font-size: 1.1rem;
+  color: #2563eb;
+  font-weight: 700;
+  margin-bottom: 0.7rem;
+}
+
+.draw-controls-area {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.2rem;
+}
+
+.draw-controls {
+  display: flex;
+  align-items: flex-end;
+  gap: 2.5rem;
+  width: 100%;
+  max-width: 900px;
+  margin: 0 auto 0.7rem auto;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.color-picker-outer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.7rem;
+}
+.color-picker-outer .react-colorful {
+  width: 120px;
+  height: 120px;
+  border-radius: 16px;
+  box-shadow: 0 2px 8px #60a5fa22;
+  border: 2px solid #bae6fd;
+  background: #fff;
+}
+.color-preview {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 2px solid #bae6fd;
+  box-shadow: 0 1px 4px #60a5fa33;
+  margin-top: 0.2rem;
+}
+
+.brush-size-slider-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  min-width: 120px;
+  width: 140px;
+}
+.brush-preview-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.2rem;
+  min-height: 32px;
+}
+.brush-preview-circle {
+  border-radius: 50%;
+  border: 2px solid #e0e7ef;
+  box-shadow: 0 1px 4px #60a5fa33;
+  background: #2563eb;
+  transition: width 0.1s, height 0.1s;
+}
+.brush-size-label {
+  font-size: 13px;
+  color: #64748b;
+  min-width: 32px;
+  text-align: left;
+}
+
+.submit-drawing-btn {
+  margin-top: 1.2rem;
+  font-size: 1.15rem;
+  font-weight: 700;
+  padding: 0.8rem 2.5rem;
+  border-radius: 10px;
+  background: linear-gradient(90deg, #38bdf8 0%, #6366f1 100%);
+  color: #fff;
+  box-shadow: 0 2px 8px #60a5fa33;
+  cursor: pointer;
+  border: none;
+  transition: background 0.2s, box-shadow 0.2s, transform 0.1s;
+}
+.submit-drawing-btn:disabled {
+  background: #cbd5e1;
+  color: #fff;
+  cursor: not-allowed;
+}
+
+/* ================================
+   1 · Viewport math
+   ================================ */
+
+/* Give the browser a TRUE viewport unit that ignores the URL bar  */
+:root{
+  /* rn Safari/mobile fix (fires once on load)                    */
+  --vh: 1dvh;
+  --safe-area-inset-top: env(safe-area-inset-top, 0px);
+}
+
+/* y & root never scroll; the white card owns the full screen  */
+html,body,#root{
+  height:100%;                 /* ixels, not content height     */
+  overflow:hidden;             /* e outer scroll bar            */
+}
+
+/* te "glass" card = 3-row grid   header | main | footer      */
+.container{
+  height:100%;
+  display:grid;
+  grid-template-rows:auto 1fr auto;
+  padding:clamp(.8rem,2vh,1.5rem) 2vw;
+  overflow:hidden;             /* he inner scroll bar as well   */
+}
+
+/* ------------------------------------------------------------
+   MAIN DRAWING LAYOUT
+   -----------------------------------------------------------------*/
+.draw-canvas-root{
+  /* mn grid – tools snap to the left, canvas to the right      */
+  display:grid;
+  grid-template-columns:minmax(150px,22vw) 1fr;
+  column-gap:2rem;
+  align-items:start;
+
+  /*   grow inside the "main" grid row                  */
+  min-height:0;
+  overflow:auto;               /* his inner area may scroll     */
+}
+
+/* anvas size calc ------------------------------------------  */
+.drawing-canvas{
+  /*  inside 16 : 9          ② BUT cap height dynamically       */
+  max-height:calc(var(--vh)*58);    /* of the visible viewport */
+  width:100%;
+}
+
+/* sh laptop screens (≤ 800 px tall) → shave a bit more height  */
+@media (max-height:800px){
+  .drawing-canvas{ max-height:calc(var(--vh)*52); }
+}
+
+/* ---------------------------------------------------------   */
+/* : always visible, never pushes the page.                    */
+footer{
+  padding-block:.5rem;    /* r = more vertical real estate     */
+}
+
+/* ---------------------------------------------------------   */
+/* it phones & narrow tablets                                  */
+@media (max-width:768px){
+  .draw-canvas-root{
+    grid-template-columns:1fr;   /* canvas > tools             */
+    row-gap:1.4rem;
+  }
+  .draw-controls{ order:2; }      /* under the canvas           */
+}
+
+/* ================================
+   2 · Optional polish (pure cosmetics)
+   ================================ */
+
+/* Slimmer header: reduce top padding on header h1 */
+header h1 {
+  padding-top: 0.4rem !important;
+}
+
+/* Hide footer on mobile for more drawing space */
+@media (max-height:650px){
+  footer{ display:none; }
+}
+
+/* Results page responsive grid */
+.results-grid {
+  display: grid;
+  grid-template-columns: 1fr; /* Only one column for feed style */
+  gap: 2.5rem;
+  padding: 1.5rem 0 2.5rem 0;
+  width: 100%;
+  justify-items: center;
+  align-items: start;
+  margin-bottom: 2rem;
+}
+
+.results-container {
+  /* Remove overflow-y and max-height so the card does not scroll */
+}
