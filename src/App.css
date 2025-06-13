@@ -828,6 +828,15 @@ html,body,#root{
   overflow:hidden;             /* e outer scroll bar            */
 }
 
+/* Results page specific override - enable scrolling */
+body:has(.results-container),
+html:has(.results-container),
+#root:has(.results-container) {
+  overflow-y: auto !important;
+  height: auto !important;
+  min-height: 100% !important;
+}
+
 /* te "glass" card = 3-row grid   header | main | footer      */
 .container{
   height:100%;
@@ -835,6 +844,31 @@ html,body,#root{
   grid-template-rows:auto 1fr auto;
   padding:clamp(.8rem,2vh,1.5rem) 2vw;
   overflow:hidden;             /* he inner scroll bar as well   */
+}
+
+/* Results page outer wrapper - remove vertical centering */
+.min-h-screen:has(.results-container) {
+  justify-content: flex-start !important;
+  padding-top: 0.5rem !important;
+  padding-bottom: 2rem !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  min-height: 100vh !important;
+  padding-left: 1rem !important;
+  padding-right: 1rem !important;
+}
+
+/* Results page outer container - enable scrolling and remove center alignment */
+.results-container {
+  overflow: visible !important;
+  max-height: none !important;
+  height: auto !important;
+  min-height: auto !important;
+  max-width: 95% !important;
+  width: 95% !important;
+  margin: 0 auto 2rem auto !important;
+  padding: 2rem 2rem 3rem 2rem !important;
+  box-sizing: border-box !important;
 }
 
 /* ------------------------------------------------------------
@@ -894,18 +928,61 @@ header h1 {
   footer{ display:none; }
 }
 
-/* Results page responsive grid */
+/* Results page responsive grid - Instagram feed style */
 .results-grid {
-  display: grid;
-  grid-template-columns: 1fr; /* Only one column for feed style */
-  gap: 2.5rem;
-  padding: 1.5rem 0 2.5rem 0;
-  width: 100%;
-  justify-items: center;
-  align-items: start;
-  margin-bottom: 2rem;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 2.5rem !important;
+  padding: 1rem 1rem 2rem 1rem !important;
+  width: 100% !important;
+  max-width: 700px !important;
+  margin: 0 auto !important;
+  align-items: center !important;
+  box-sizing: border-box !important;
 }
 
-.results-container {
-  /* Remove overflow-y and max-height so the card does not scroll */
+/* Individual drawing cards in results - Instagram feed style */
+.results-grid .drawing-card {
+  width: 100% !important;
+  max-width: 550px !important;
+  margin: 0 auto !important;
+  background: rgba(255,255,255,0.95) !important;
+  border-radius: 1.4rem !important;
+  box-shadow: 0 8px 32px #60a5fa22 !important;
+  padding: 32px 20px 24px 20px !important;
+  border: 1.5px solid #e0e7ef !important;
+  backdrop-filter: blur(8px) !important;
+  transition: transform 0.2s ease, box-shadow 0.2s ease !important;
+  box-sizing: border-box !important;
+}
+
+.results-grid .drawing-card:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 8px 32px #60a5fa33 !important;
+}
+
+/* Mobile responsiveness for results feed */
+@media (max-width: 600px) {
+  .results-container {
+    padding: 1rem 1rem 2rem 1rem !important;
+    width: 98% !important;
+    max-width: 98% !important;
+  }
+  
+  .results-grid {
+    gap: 2rem !important;
+    padding: 0.5rem 0.5rem 1.5rem 0.5rem !important;
+    max-width: 100% !important;
+  }
+  
+  .results-grid .drawing-card {
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 24px 16px 20px 16px !important;
+    border-radius: 1rem !important;
+  }
+  
+  .min-h-screen:has(.results-container) {
+    padding: 0.3rem 0.5rem 1rem 0.5rem !important;
+  }
 }
