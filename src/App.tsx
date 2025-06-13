@@ -188,7 +188,7 @@ function DrawingCanvas({
           display: 'grid',
           gridTemplateColumns: '200px 1fr 260px',
           gap: 32,
-          alignItems: 'start',
+          alignItems: 'end',
           width: '100%',
           minHeight: '500px',
         }}
@@ -205,6 +205,7 @@ function DrawingCanvas({
             borderRadius: 0,
             padding: 0,
             boxShadow: 'none',
+            alignSelf: 'start',
           }}
         >
         <div style={{ marginBottom: 8, fontWeight: 600, color: '#2563eb', fontSize: 17, textAlign: 'center', width: '100%' }}>
@@ -387,7 +388,7 @@ function DrawingCanvas({
           style={{
             background: '#fff',
             borderRadius: 18,
-            border: '2.5px solid #bae6fd',
+            // border: '2.5px solid #bae6fd',
             width: '100%',
             aspectRatio: '16/9',
             maxWidth: 900,
@@ -419,6 +420,20 @@ function DrawingCanvas({
             maxWidth: 400,
             alignSelf: 'center',
           }}
+          onMouseOver={e => {
+            if (canSubmit && !submitted) {
+              e.currentTarget.style.background = 'linear-gradient(90deg, #0ea5e9 0%, #5b21b6 100%)';
+              e.currentTarget.style.transform = 'scale(1.05)';
+              e.currentTarget.style.boxShadow = '0 4px 12px #60a5fa66';
+            }
+          }}
+          onMouseOut={e => {
+            if (canSubmit && !submitted) {
+              e.currentTarget.style.background = 'linear-gradient(90deg, #38bdf8 0%, #6366f1 100%)';
+            }
+            e.currentTarget.style.transform = 'scale(1)';
+            e.currentTarget.style.boxShadow = '0 2px 8px #60a5fa33';
+          }}
         >
           {submitted ? 'Drawing Submitted!' : 'Submit Drawing'}
         </button>
@@ -436,7 +451,6 @@ function DrawingCanvas({
             padding: 0,
             boxShadow: 'none',
             height: '100%',
-            minHeight: '500px',
           }}
         >
         <div style={{ fontWeight: 700, color: '#2563eb', fontSize: 17, textAlign: 'center', marginBottom: 4 }}>
@@ -451,9 +465,9 @@ function DrawingCanvas({
             borderRadius: 8,
             padding: '8px 6px',
             marginBottom: 6,
-            border: '1.5px solid #bae6fd',
+            // border: '1.5px solid #bae6fd',
+            boxShadow: '0 4px 24px #60a5fa22',
             fontSize: 15,
-            minHeight: 300,
             display: 'flex',
             flexDirection: 'column',
             gap: 6,
@@ -491,45 +505,86 @@ function DrawingCanvas({
           ))}
           <div ref={chatEndRef} />
         </div>
-        <form
-          onSubmit={e => { e.preventDefault(); handleSendChat(); }}
-          style={{ display: 'flex', flexDirection: 'row', gap: 6, alignItems: 'center', width: '100%' }}
+        <div
+          style={{ 
+            display: 'flex', 
+            flexDirection: 'row', 
+            gap: 8, 
+            alignItems: 'center', 
+            width: '100%',
+          }}
         >
-          <input
-            type="text"
-            value={chatInput}
-            onChange={e => setChatInput(e.target.value)}
-            placeholder="Type a message..."
-            maxLength={120}
-            style={{
+          <form
+            onSubmit={e => { e.preventDefault(); handleSendChat(); }}
+            style={{ 
+              display: 'flex', 
+              flexDirection: 'row', 
+              gap: 8, 
+              alignItems: 'center', 
               flex: 1,
+              background: '#fff',
               borderRadius: 8,
-              border: '1.5px solid #bae6fd',
-              padding: '6px 10px',
-              fontSize: 15,
-              background: '#f1f5f9',
-              color: '#222',
+              padding: '8px 12px',
+              boxShadow: '0 4px 24px #60a5fa22',
             }}
-            disabled={!myId}
-            autoComplete="off"
-          />
+          >
+            <input
+              type="text"
+              value={chatInput}
+              onChange={e => setChatInput(e.target.value)}
+              placeholder="Type a message..."
+              maxLength={120}
+              style={{
+                flex: 1,
+                border: 'none',
+                outline: 'none',
+                fontSize: 15,
+                background: 'transparent',
+                color: '#334155',
+                fontWeight: 500,
+              }}
+              disabled={!myId}
+              autoComplete="off"
+            />
+          </form>
           <button
-            type="submit"
-            className="game-btn"
+            type="button"
+            onClick={e => { e.preventDefault(); handleSendChat(); }}
             style={{
-              padding: '0.5rem 1.1rem',
-              fontSize: 15,
+              width: 40,
+              height: 40,
               borderRadius: 8,
-              fontWeight: 700,
-              background: 'linear-gradient(90deg, #38bdf8 0%, #6366f1 100%)',
-              color: '#fff',
+              background: chatInput.trim() && myId
+                ? 'linear-gradient(90deg, #38bdf8 0%, #6366f1 100%)' 
+                : '#e2e8f0',
+              color: chatInput.trim() && myId ? '#fff' : '#94a3b8',
               border: 'none',
-              cursor: chatInput.trim() ? 'pointer' : 'not-allowed',
-              opacity: chatInput.trim() ? 1 : 0.6,
+              cursor: (chatInput.trim() && myId) ? 'pointer' : 'not-allowed',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 18,
+              fontWeight: 600,
+              transition: 'all 0.15s ease',
+              boxShadow: (chatInput.trim() && myId) ? '0 2px 8px #60a5fa33' : 'none',
             }}
             disabled={!chatInput.trim() || !myId}
-          >Send</button>
-        </form>
+            onMouseOver={e => {
+              if (chatInput.trim() && myId) {
+                e.currentTarget.style.background = 'linear-gradient(90deg, #0ea5e9 0%, #5b21b6 100%)';
+                e.currentTarget.style.transform = 'scale(1.05)';
+                e.currentTarget.style.boxShadow = '0 4px 12px #60a5fa66';
+              }
+            }}
+            onMouseOut={e => {
+              if (chatInput.trim() && myId) {
+                e.currentTarget.style.background = 'linear-gradient(90deg, #38bdf8 0%, #6366f1 100%)';
+              }
+              e.currentTarget.style.transform = 'scale(1)';
+              e.currentTarget.style.boxShadow = (chatInput.trim() && myId) ? '0 2px 8px #60a5fa33' : 'none';
+            }}
+          >➤</button>
+        </div>
       </div>
       </div>
     </div>
@@ -1231,6 +1286,16 @@ function App() {
                       transition: 'background 0.2s, box-shadow 0.2s, transform 0.1s',
                       width: '100%',
                       border: 'none',
+                    }}
+                    onMouseOver={e => {
+                      e.currentTarget.style.background = 'linear-gradient(90deg, #0ea5e9 0%, #5b21b6 100%)';
+                      e.currentTarget.style.transform = 'scale(1.05)';
+                      e.currentTarget.style.boxShadow = '0 4px 12px #60a5fa66';
+                    }}
+                    onMouseOut={e => {
+                      e.currentTarget.style.background = 'linear-gradient(90deg, #38bdf8 0%, #6366f1 100%)';
+                      e.currentTarget.style.transform = 'scale(1)';
+                      e.currentTarget.style.boxShadow = '0 2px 8px #60a5fa33';
                     }}
                   >
                     Start Next Round
