@@ -20,16 +20,64 @@ app.use(express.json());
 const { getRandomPrompt } = require('./prompts');
 const rooms = {};
 
+// Enhanced validation function
+const validateNickname = (nickname) => {
+  if (!nickname || typeof nickname !== 'string') {
+    return 'Invalid nickname';
+  }
+  
+  const trimmed = nickname.trim();
+  
+  if (trimmed.length < 2) {
+    return 'Nickname must be at least 2 characters';
+  }
+  
+  if (trimmed.length > 15) {
+    return 'Nickname must be 15 characters or less';
+  }
+  
+  if (!/^[a-zA-Z0-9\s._-]+$/.test(trimmed)) {
+    return 'Nickname contains invalid characters';
+  }
+  
+  // Check for excessive whitespace
+  if (trimmed !== trimmed.replace(/\s+/g, ' ')) {
+    return 'Please avoid excessive spaces in your nickname';
+  }
+  
+  return null; // Valid
+};
+
+const validateRoomCode = (code) => {
+  if (!code || typeof code !== 'string') {
+    return 'Invalid room code';
+  }
+  
+  const trimmed = code.trim().toUpperCase();
+  
+  if (trimmed.length !== 5) {
+    return 'Room code must be 5 characters';
+  }
+  
+  if (!/^[A-Z0-9]+$/.test(trimmed)) {
+    return 'Room code contains invalid characters';
+  }
+  
+  return null; // Valid
+};
+
 io.on('connection', (socket) => {
   console.log('Client connected:', socket.id);
 
   socket.on('host-room', ({ nickname }, callback) => {
     try {
-      if (!nickname || typeof nickname !== 'string') {
-        throw new Error('Invalid nickname');
+      const validationError = validateNickname(nickname);
+      if (validationError) {
+        throw new Error(validationError);
       }
 
-      console.log('Host room request from:', nickname);
+      const trimmedNickname = nickname.trim();
+      console.log('Host room request from:', trimmedNickname);
       
       // Generate a unique room code
       let code;
@@ -48,7 +96,7 @@ io.on('connection', (socket) => {
         host: socket.id,
         players: [{
           id: socket.id,
-          nickname,
+          nickname: trimmedNickname,
           isReady: true // host is always ready
         }],
         drawings: {},
@@ -59,7 +107,7 @@ io.on('connection', (socket) => {
       // Join the socket room
       socket.join(code);
       
-      console.log('Created room:', code, 'with host:', nickname);
+      console.log('Created room:', code, 'with host:', trimmedNickname);
       
       if (typeof callback === 'function') {
         callback({ code });
@@ -76,21 +124,49 @@ io.on('connection', (socket) => {
   });
 
   socket.on('join-room', ({ code, nickname }, callback) => {
-    if (rooms[code]) {
-      const player = {
-        id: socket.id,
-        nickname,
-        isReady: false
-      };
-      rooms[code].players.push(player);
-      socket.join(code);
-      io.to(code).emit('lobby-update', rooms[code].players);
-      if (typeof callback === 'function') {
-        callback({ success: true });
+    try {
+      // Validate room code
+      const codeValidationError = validateRoomCode(code);
+      if (codeValidationError) {
+        throw new Error(codeValidationError);
       }
-    } else {
+
+      // Validate nickname
+      const nicknameValidationError = validateNickname(nickname);
+      if (nicknameValidationError) {
+        throw new Error(nicknameValidationError);
+      }
+
+      const trimmedCode = code.trim().toUpperCase();
+      const trimmedNickname = nickname.trim();
+
+      if (rooms[trimmedCode]) {
+        // Check if nickname is already taken in this room
+        const existingPlayer = rooms[trimmedCode].players.find(p => 
+          p.nickname.toLowerCase() === trimmedNickname.toLowerCase()
+        );
+        if (existingPlayer) {
+          throw new Error('Nickname is already taken in this room');
+        }
+
+        const player = {
+          id: socket.id,
+          nickname: trimmedNickname,
+          isReady: false
+        };
+        rooms[trimmedCode].players.push(player);
+        socket.join(trimmedCode);
+        io.to(trimmedCode).emit('lobby-update', rooms[trimmedCode].players);
+        if (typeof callback === 'function') {
+          callback({ success: true });
+        }
+      } else {
+        throw new Error('Room not found');
+      }
+    } catch (error) {
+      console.error('Error in join-room:', error);
       if (typeof callback === 'function') {
-        callback({ success: false, error: 'Room not found' });
+        callback({ success: false, error: error.message || 'Failed to join room' });
       }
     }
   });
@@ -128,9 +204,36 @@ io.on('connection', (socket) => {
   });
 
   socket.on('chat-message', ({ code, text, nickname, id, time }) => {
-    if (rooms[code]) {
+    try {
+      if (!rooms[code]) {
+        return; // Room doesn't exist
+      }
+
+      // Validate message text
+      if (!text || typeof text !== 'string') {
+        return; // Invalid message
+      }
+
+      const trimmedText = text.trim();
+      if (!trimmedText || trimmedText.length > 120) {
+        return; // Empty or too long message
+      }
+
+      // Check if sender is actually in the room
+      const player = rooms[code].players.find(p => p.id === socket.id);
+      if (!player) {
+        return; // Player not in room
+      }
+
       // Broadcast the chat message to all players in the room
-      io.to(code).emit('chat-message', { text, nickname, id, time });
+      io.to(code).emit('chat-message', { 
+        text: trimmedText, 
+        nickname: player.nickname, // Use server-stored nickname for security
+        id: socket.id, 
+        time: Date.now() // Use server time
+      });
+    } catch (error) {
+      console.error('Error in chat-message:', error);
     }
   });
 
