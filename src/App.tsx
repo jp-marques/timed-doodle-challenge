@@ -520,7 +520,7 @@ function DrawingCanvas({
         </div>
         <canvas
           ref={canvasRef}
-          className="drawing-canvas"
+          className={`drawing-canvas ${selectedTool === 'brush' ? 'cursor-brush' : 'cursor-bucket'}`}
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
@@ -536,7 +536,6 @@ function DrawingCanvas({
             minHeight: 350,
             boxShadow: '0 4px 24px #60a5fa22',
             display: 'block',
-            cursor: selectedTool === 'bucket' ? 'pointer' : 'crosshair',
             touchAction: 'none',
           }}
         />

@@ -421,7 +421,7 @@ button.ready:hover {
   margin: 0 auto;
   display: block;
   z-index: 1;
-  cursor: crosshair;
+  /* cursor: crosshair; */ /* Removed to allow custom tool cursors */
 }
 
 /* --- Drawing controls layout fix --- */
@@ -492,7 +492,7 @@ button.ready:hover {
   /* border: 2.5px solid #bae6fd; */
   box-shadow: 0 4px 24px #60a5fa22;
   background: #fff;
-  cursor: crosshair;
+  /* cursor: crosshair; */ /* Removed to allow custom tool cursors */
   touch-action: none;
 }
 
@@ -985,4 +985,13 @@ header h1 {
   .min-h-screen:has(.results-container) {
     padding: 0.3rem 0.5rem 1rem 0.5rem !important;
   }
+}
+
+/* Custom cursor styles for drawing tools */
+.cursor-brush {
+  cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><text y="24" font-size="20">🖌️</text></svg>') 6 26, crosshair !important;
+}
+
+.cursor-bucket {
+  cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><text y="24" font-size="20">🪣</text></svg>') 16 16, pointer !important;
 }
