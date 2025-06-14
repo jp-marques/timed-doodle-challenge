@@ -1,208 +1,257 @@
-# Timed Doodle Challenge
+# Timed Doodle Challenge 🎨
 
-A real-time multiplayer drawing game where users join rooms, draw based on prompts within a time limit, and share their artwork with other players. Built with React (Vite) frontend and Node.js/Express/Socket.IO backend.
+A real-time multiplayer drawing game where players join rooms, draw based on prompts within a time limit, and share their artwork with others. Features a modern React frontend with TypeScript and a robust Node.js backend with Socket.IO for real-time communication.
 
-## Features
+## ✨ Features
 
-### Current Features
-- **Room System**: Host or join rooms with 5-character codes
-- **Multiplayer Support**: Multiple players per room with real-time updates
-- **Drawing Canvas**: 
-  - Responsive canvas that adapts to screen size (16:9 aspect ratio, max 1200px width)
-  - Color picker with hex color selection
-  - Adjustable brush size (2-40px) with live preview
-  - Clear canvas functionality
-  - Touch/pointer support for mobile devices
-- **Game Flow**:
-  - Lobby system with ready/not ready status
-  - 60-second drawing timer
-  - Categorized prompts (animals, objects, nature, food, vehicles, fantasy, buildings, sports)
-  - Category icons for visual feedback
-- **Results Gallery**: 
-  - View all submitted drawings after each round
-  - Paginated gallery (9 drawings per page)
-  - Player attribution for each drawing
-- **Real-time Chat**: 
-  - In-game chat during drawing phase
-  - Message history with player identification
-  - Chat input with 120 character limit
-- **User Interface**:
-  - Modern gradient backgrounds and styling
-  - Responsive design for different screen sizes
-  - Three-column layout during drawing (tools, canvas, chat)
-  - Smooth animations and transitions
-  - Loading states and error handling
+### 🎮 Core Gameplay
+- **Room System**: Host or join rooms with unique 5-character codes
+- **Multiplayer Support**: Real-time synchronization for multiple players
+- **Timed Drawing**: 60-second rounds with categorized prompts
+- **Results Gallery**: View all submitted drawings with player attribution
+- **Continuous Play**: Host can start multiple rounds seamlessly
 
-### Architecture
-- **Frontend**: React 18 + TypeScript + Vite
-- **Backend**: Node.js + Express + Socket.IO
-- **Real-time Communication**: WebSocket connections via Socket.IO
-- **Canvas**: HTML5 Canvas API with pointer events
-- **Styling**: CSS-in-JS with Tailwind utility classes
+### 🎨 Drawing Tools
+- **Responsive Canvas**: Adaptive 16:9 aspect ratio (max 1200px width)
+- **Advanced Color Picker**: Hex color selection with popular color shortcuts
+- **Brush Controls**: Adjustable size (2-40px) with live preview
+- **Clear Canvas**: Quick reset functionality
 
-## Project Structure
+### 💬 Social Features
+- **Real-time Chat**: Room-based messaging during games
+- **Player Management**: Ready/not ready status system
+- **Nickname Validation**: Secure player identification (2-15 characters)
+- **Connection Handling**: Graceful disconnect and reconnection
+
+### 🎯 Prompt System
+8 diverse categories with 200+ prompts:
+- 🐾 Animals
+- 📦 Objects  
+- 🌳 Nature
+- 🍎 Food
+- 🚗 Vehicles
+- 🦄 Fantasy
+- 🏢 Buildings
+- ⚽️ Sports
+
+### 🎨 UI/UX
+- **Modern Design**: Gradient backgrounds and smooth animations
+- **Responsive Layout**: Optimized for desktop (mobile soon)
+- **Three-Column Interface**: Tools, canvas, and chat during gameplay
+- **Loading States**: Comprehensive error handling and feedback
+- **Accessibility**: Keyboard and screen reader friendly
+
+## 🏗️ Architecture
+
+### Frontend Stack
+- **React 19** + **TypeScript** + **Vite** - Modern development experience
+- **Tailwind CSS 4** - Utility-first styling with custom components
+- **Socket.IO Client** - Real-time WebSocket communication
+- **React Colorful** - Advanced color picker component
+
+### Backend Stack
+- **Node.js** + **Express** - RESTful API and static serving
+- **Socket.IO** - WebSocket server for real-time features
+- **CORS** - Cross-origin resource sharing configuration
+
+### Real-time Features
+- **WebSocket Communication**: Instant updates for all game events
+- **Room Management**: Isolated game sessions with player tracking
+- **State Synchronization**: Consistent game state across all clients
+- **Error Handling**: Graceful fallbacks and reconnection logic
+
+## 📁 Project Structure
 
 ```
 TimedDoodle/
-├── public/                 # Static assets
+├── public/                 # Static assets and favicon
 ├── src/
-│   ├── App.tsx            # Main application component
-│   ├── App.css            # Global styles and animations
-│   └── main.tsx           # Application entry point
-├── server/                # Backend server (separate folder)
+│   ├── App.tsx            # Main application component (1,787 lines)
+│   ├── App.css            # Global styles and animations (1,092 lines)
+│   ├── index.css          # Base Tailwind imports
+│   ├── main.tsx           # Application entry point
+│   └── assets/            # Images and icons
+├── server/                # Backend application
+│   ├── index.js           # Express + Socket.IO server (275 lines)
+│   ├── prompts.js         # Categorized drawing prompts
+│   └── package.json       # Server dependencies
 ├── package.json           # Frontend dependencies
-└── README.md             # This file
+├── vite.config.ts         # Vite configuration
+├── tailwind.config.js     # Tailwind customization
+└── tsconfig.*.json        # TypeScript configurations
 ```
 
-## Getting Started
+## 🚀 Quick Start
 
 ### Prerequisites
-- Node.js 18+
-- npm or yarn
+- **Node.js 18+** (LTS recommended)
+- **npm** or **yarn** package manager
 
-### Frontend Setup
+### 1. Clone and Install
 ```bash
-# Install dependencies
+git clone <repository-url>
+cd TimedDoodle
+
+# Install frontend dependencies
 npm install
 
-# Start development server
-npm run dev
+# Install backend dependencies
+cd server
+npm install
+cd ..
 ```
 
-### Backend Setup
-Navigate to the `/server` folder and follow the backend setup instructions.
+### 2. Development Setup
+```bash
+# Terminal 1: Start the backend server
+cd server
+npm start
+# Server runs on http://localhost:3001
 
-## Key Components
+# Terminal 2: Start the frontend development server
+npm run dev
+# Frontend runs on http://localhost:5173
+```
 
-### App.tsx
-Main application component handling:
-- Socket.IO connection management
-- Game state management (menu, lobby, drawing, results)
-- Room creation and joining
-- Drawing submission and canvas management
-- Chat functionality
-- Player management
+### 3. Production Build
+```bash
+# Build optimized frontend
+npm run build
 
-### DrawingCanvas Component
-Encapsulates all drawing functionality:
-- Canvas drawing logic with pointer events
-- Drawing tools (color picker, brush size)
-- Timer and prompt display
-- Chat interface
-- Responsive canvas sizing
+# Preview production build
+npm run preview
 
-### Custom Hooks
-- `useAutoSizedCanvas`: Automatically resizes canvas to maintain aspect ratio and sync CSS with bitmap dimensions
+# Deploy server (Node.js hosting required)
+cd server
+npm start
+```
 
-## Game Flow
+## 🎮 How to Play
 
-1. **Menu**: Enter nickname and choose to host or join
-2. **Host/Join**: Create room or enter room code
-3. **Lobby**: Wait for players, set ready status
-4. **Drawing**: 60-second timed drawing based on categorized prompt
-5. **Results**: View all submitted drawings in gallery format
-6. **Repeat**: Host can start new rounds
+1. **Start**: Enter your nickname (2-15 characters, alphanumeric + spaces/.-_)
+2. **Create/Join**: Host a new room or join with a 5-character code
+3. **Lobby**: Wait for players and set ready status (host is always ready)
+4. **Draw**: Create artwork based on the prompt within 60 seconds
+5. **Results**: View everyone's drawings in a paginated gallery
+6. **Repeat**: Host can start new rounds with different prompts
 
-## Socket.IO Events
+## 🔧 Development
 
-### Client → Server
-- `host-room`: Create new room
-- `join-room`: Join existing room
-- `toggle-ready`: Toggle player ready status
-- `start-round`: Start new drawing round (host only)
-- `submit-drawing`: Submit canvas drawing as base64
-- `chat-message`: Send chat message
+### Available Scripts
 
-### Server → Client
-- `lobby-update`: Player list updates
-- `round-start`: New round with prompt and timer
-- `round-end`: Round finished with all drawings
-- `host-left`: Host disconnected
-- `chat-message`: Broadcast chat message
+#### Frontend
+```bash
+npm run dev      # Start development server with HMR
+npm run build    # Build for production
+npm run lint     # Run ESLint
+npm run preview  # Preview production build
+```
 
-## TODO
+#### Backend
+```bash
+npm start        # Start production server
+```
 
-### High Priority
-- [ ] **Implement game chat backend**: Make chats unique to rooms and rounds, with proper message persistence and room isolation
-- [ ] **Nickname character limit**: Implement proper validation and length restrictions for player nicknames
-- [ ] **Improve UI**: Polish the user interface with better spacing, typography, and visual hierarchy
+### Socket.IO Events
 
-### Medium Priority
-- [ ] **Add bucket fill feature**: Implement flood fill tool for easier coloring of large areas
-- [ ] **Improve brush color picker**: Reduce color options to a curated palette instead of full hex picker
-- [ ] **Improve drawing tools section**: Better organization and additional tools (eraser, different brush types)
+#### Client → Server
+- `host-room` - Create new room with validation
+- `join-room` - Join existing room with nickname check
+- `toggle-ready` - Toggle player ready status
+- `start-round` - Begin new drawing round (host only)
+- `submit-drawing` - Submit canvas as base64 image
+- `chat-message` - Send room chat message
 
-### Low Priority
-- [ ] Add undo/redo functionality
-- [ ] Implement drawing layers
-- [ ] Add more prompt categories
-- [ ] Save drawing history
-- [ ] Add spectator mode
-- [ ] Implement voting system for drawings
-- [ ] Add sound effects and animations
-- [ ] Mobile-specific UI improvements
-- [ ] Add drawing time extensions
-- [ ] Implement room passwords
+#### Server → Client
+- `lobby-update` - Updated player list and ready states
+- `round-start` - New round with prompt and 60s timer
+- `round-end` - Round finished with all drawings
+- `host-left` - Host disconnected, room closing
+- `chat-message` - Broadcast chat message to room
+
+### Key Components
+
+#### App.tsx
+Main application state machine handling:
+- Socket.IO connection lifecycle
+- Game state transitions (menu → lobby → drawing → results)
+- Room management and player synchronization
+- Drawing canvas integration and submission
+- Chat system and message handling
+
+#### Custom Hooks
+- `useAutoSizedCanvas` - Maintains canvas aspect ratio and bitmap/CSS sync
+- Real-time event listeners for Socket.IO
+- Responsive design utilities
+
+## 🔒 Security Features
+
+- **Input Validation**: Comprehensive sanitization for nicknames, room codes, and chat
+- **Rate Limiting**: Message throttling and connection limits
+- **XSS Prevention**: Text content sanitization
+- **CORS Configuration**: Restricted origins for production security
+- **Room Isolation**: Players can only interact within their assigned rooms
+
+## 🌐 Deployment
+
+### Frontend (Vercel/Netlify)
+- Build command: `npm run build`
+- Output directory: `dist`
+- Node version: 18+
+
+### Backend (Railway/Heroku/VPS)
+- Start command: `npm start`
+- Port: `process.env.PORT` or 3001
+- CORS origins configured for production domains
+
+### Environment Variables
+```bash
+# Backend
+PORT=3001
+
+# Frontend (build time)
+VITE_SERVER_URL=https://your-backend-domain.com
+```
+
+## 📋 TODO & Roadmap
+
+### 🔥 High Priority
+- [ ] **Mobile UX**: Gesture controls, better touch interface
+- [ ] **General Frontend**: Overall frontend fixes since it's not perfect
+
+### 🎯 Medium Priority
+- [ ] **Advanced Drawing Tools**: eraser, line/shape tools
+- [ ] **Curated Color Palette**: Replace full hex picker with artist-selected colors
+- [ ] **Room Settings**: Private rooms, custom time limits, player limits
+
+### 💡 Future Ideas
+- [ ] **Voting System**: Rate drawings, awards, leaderboards
+- [ ] **Drawing Layers**: Advanced composition tools
+- [ ] **Spectator Mode**: Watch games without participating  
+- [ ] **Sound Design**: Background music, sound effects
+- [ ] **Custom Prompts**: User-generated content, themed prompt packs
+- [ ] **Replay System**: Save and share game sessions
+- [ ] **AI Integration**: Prompt suggestions, drawing analysis
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature/amazing-feature`
+3. Commit changes: `git commit -m 'Add amazing feature'`
+4. Push to branch: `git push origin feature/amazing-feature`
+5. Open a Pull Request
+
+## 📄 License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## 🙏 Acknowledgments
+
+- **React Team** for the excellent framework and TypeScript integration
+- **Socket.IO** for reliable real-time communication
+- **Vite** for blazing fast development experience
+- **Tailwind CSS** for utility-first styling approach
 
 ---
 
-## Development Notes
-
-This project evolved from a simple MVP to a full-featured multiplayer drawing game. The architecture emphasizes real-time communication and responsive design while maintaining clean, maintainable code structure.
-
-The canvas implementation uses pointer events for cross-platform compatibility and includes automatic scaling to handle different screen sizes while maintaining drawing accuracy.
-
-# React + TypeScript + Vite
-
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
-
-Currently, two official plugins are available:
-
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default tseslint.config({
-  extends: [
-    // Remove ...tseslint.configs.recommended and replace with this
-    ...tseslint.configs.recommendedTypeChecked,
-    // Alternatively, use this for stricter rules
-    ...tseslint.configs.strictTypeChecked,
-    // Optionally, add this for stylistic rules
-    ...tseslint.configs.stylisticTypeChecked,
-  ],
-  languageOptions: {
-    // other options...
-    parserOptions: {
-      project: ['./tsconfig.node.json', './tsconfig.app.json'],
-      tsconfigRootDir: import.meta.dirname,
-    },
-  },
-})
-```
-
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default tseslint.config({
-  plugins: {
-    // Add the react-x and react-dom plugins
-    'react-x': reactX,
-    'react-dom': reactDom,
-  },
-  rules: {
-    // other rules...
-    // Enable its recommended typescript rules
-    ...reactX.configs['recommended-typescript'].rules,
-    ...reactDom.configs.recommended.rules,
-  },
-})
-```
+Built with ❤️ for creative expression and multiplayer fun!
