@@ -1304,7 +1304,7 @@ function App() {
                 Join Room
               </button>
               <button
-                onClick={() => setView('menu')}
+                onClick={() => setView('host')}
                 style={{
                   width: '100%',
                   padding: '0.75rem 2rem',
@@ -1330,7 +1330,7 @@ function App() {
                   e.currentTarget.style.boxShadow = '0 1px 4px #64748b22';
                 }}
               >
-                Back to Main Menu
+                Back to Welcome
               </button>
             </div>
           </div>
@@ -1338,7 +1338,7 @@ function App() {
 
         {/* ---------- LOBBY SCREEN ---------- */}
         {view === 'lobby' && (
-          <div className="min-h-screen w-full flex flex-col items-center justify-center bg-gradient-to-br from-blue-50 via-sky-100 to-indigo-100">
+          <div className="w-full flex flex-col items-center justify-center bg-gradient-to-br from-blue-50 via-sky-100 to-indigo-100">
             <div
               className="results-container"
               style={{
@@ -1400,7 +1400,7 @@ function App() {
                       {players.every((p) => p.isReady) ? 'Start Drawing Challenge!' : 'Waiting for Players...'}
                     </button>
                     <button
-                      onClick={() => setView('menu')}
+                      onClick={() => setView('host')}
                       style={{
                         width: '100%',
                         padding: '0.75rem 2rem',
@@ -1426,7 +1426,7 @@ function App() {
                         e.currentTarget.style.boxShadow = '0 1px 4px #64748b22';
                       }}
                     >
-                      Back to Main Menu
+                      Back to Welcome
                     </button>
                   </>
                 ) : (
