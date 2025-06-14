@@ -710,7 +710,7 @@ button.ready:hover {
   margin: 0.2rem 0 0.7rem 0;
 }
 .draw-prompt {
-  font-size: 1.2rem;
+  font-size: 2.2rem;
   color: #334155;
   margin-bottom: 0.4rem;
 }
@@ -849,8 +849,8 @@ html:has(.results-container),
 /* Results page outer wrapper - remove vertical centering */
 .min-h-screen:has(.results-container) {
   justify-content: flex-start !important;
-  padding-top: 0.5rem !important;
-  padding-bottom: 2rem !important;
+  /* padding-top: 0.5rem !important;
+  padding-bottom: 2rem !important; */
   overflow-y: auto !important;
   overflow-x: hidden !important;
   min-height: 100vh !important;
@@ -994,4 +994,98 @@ header h1 {
 
 .cursor-bucket {
   cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><text y="24" font-size="20">🪣</text></svg>') 16 16, pointer !important;
+}
+
+/* Responsive Drawing Layout */
+.draw-main-grid {
+  display: grid;
+  grid-template-columns: minmax(180px, 200px) minmax(320px, 1fr) minmax(240px, 260px);
+  gap: 16px;
+  align-items: start;
+  width: 100%;
+  min-height: 500px;
+}
+
+/* Stack vertically on tablets and smaller */
+@media (max-width: 1024px) {
+  .draw-main-grid {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto auto;
+    gap: 20px;
+    align-items: center;
+  }
+  
+  .draw-controls {
+    order: 2;
+    max-width: 500px;
+    width: 100%;
+  }
+  
+  .canvas-area-outer {
+    order: 1;
+    width: 100%;
+  }
+  
+  .draw-chat-panel {
+    order: 3;
+    max-width: 500px;
+    width: 100%;
+  }
+}
+
+/* Mobile optimizations */
+@media (max-width: 768px) {
+  .draw-main-grid {
+    gap: 16px;
+    padding: 0 8px;
+  }
+  
+  .draw-canvas-root {
+    padding: 20px 16px 24px 16px;
+  }
+  
+  .draw-controls {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 12px;
+  }
+  
+  .color-picker-outer,
+  .brush-size-slider-area {
+    flex: 1;
+    min-width: 140px;
+  }
+}
+
+/* Extra small screens */
+@media (max-width: 480px) {
+  .draw-main-grid {
+    gap: 12px;
+    padding: 0 4px;
+  }
+  
+  .draw-canvas-root {
+    padding: 16px 12px 20px 12px;
+    border-radius: 1.5rem;
+  }
+  
+  .draw-controls {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .color-picker-outer,
+  .brush-size-slider-area {
+    width: 100%;
+    min-width: auto;
+  }
+  
+  .draw-chat-panel {
+    min-height: 200px;
+  }
+  
+  .drawing-canvas {
+    min-height: 250px;
+  }
 }
