@@ -164,6 +164,8 @@ function DrawingCanvas({
   };
 
   // Drawing handlers
+  const hasMoved = useRef(false);
+  
   const getScale = () => {
     const canvas = canvasRef.current;
     if (!canvas) return { sx: 1, sy: 1 };
@@ -189,6 +191,7 @@ function DrawingCanvas({
       saveCanvasState();
       // Handle brush tool
       isDrawing.current = true;
+      hasMoved.current = false;
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
       ctx.beginPath();
@@ -207,6 +210,9 @@ function DrawingCanvas({
     const { sx, sy } = getScale();
     const x = (e.clientX - rect.left) * sx;
     const y = (e.clientY - rect.top) * sy;
+    
+    hasMoved.current = true;
+    
     ctx.strokeStyle = color;
     ctx.lineWidth = brushSize;
     ctx.lineCap = 'round';
@@ -219,8 +225,26 @@ function DrawingCanvas({
   };
 
   const handlePointerUp = () => {
+    // If we didn't move (just a click), draw a dot
+    if (isDrawing.current && !hasMoved.current && selectedTool === 'brush' && last.current) {
+      const canvas = canvasRef.current;
+      if (canvas) {
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.strokeStyle = color;
+          ctx.lineWidth = brushSize;
+          ctx.lineCap = 'round';
+          ctx.beginPath();
+          ctx.arc(last.current.x, last.current.y, brushSize / 2, 0, Math.PI * 2);
+          ctx.fillStyle = color;
+          ctx.fill();
+        }
+      }
+    }
+    
     isDrawing.current = false;
     last.current = null;
+    hasMoved.current = false;
   };
 
   // Flood fill algorithm for bucket tool
