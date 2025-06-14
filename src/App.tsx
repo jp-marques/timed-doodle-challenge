@@ -7,6 +7,7 @@ import {
 import './App.css';
 import { io, Socket } from 'socket.io-client';
 import { HexColorPicker } from 'react-colorful';
+import config from './config';
 
 /* ─────────────────────────────────────────────────── */
 /*                     Types                           */
@@ -885,7 +886,7 @@ function App() {
   /* --------------- Socket initialisation -------------- */
   useEffect(() => {
     try {
-      socketRef.current = io('https://timed-doodle-challenge.onrender.com', {
+      socketRef.current = io(config.socketUrl, {
         transports: ['websocket', 'polling'],
         reconnectionDelayMax: 5000,
         reconnectionAttempts: 5,
