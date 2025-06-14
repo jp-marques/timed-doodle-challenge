@@ -885,7 +885,7 @@ function App() {
   /* --------------- Socket initialisation -------------- */
   useEffect(() => {
     try {
-      socketRef.current = io('http://localhost:3001', {
+      socketRef.current = io('https://timed-doodle-challenge.onrender.com', {
         transports: ['websocket', 'polling'],
         reconnectionDelayMax: 5000,
         reconnectionAttempts: 5,
