@@ -112,8 +112,56 @@ function DrawingCanvas({
   const isDrawing = useRef(false);
   const last = useRef<{ x: number; y: number } | null>(null);
 
+  // Canvas history for undo functionality
+  const [canvasHistory, setCanvasHistory] = useState<string[]>([]);
+  const MAX_HISTORY = 20; // Limit history to prevent memory issues
+
   // Responsive canvas sizing
   useAutoSizedCanvas(canvasRef);
+
+  // Save canvas state to history
+  const saveCanvasState = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    
+    const dataUrl = canvas.toDataURL();
+    setCanvasHistory(prev => {
+      const newHistory = [...prev, dataUrl];
+      // Keep only the last MAX_HISTORY states
+      return newHistory.slice(-MAX_HISTORY);
+    });
+  };
+
+  // Clear history when canvas is cleared
+  const handleClearWithHistory = () => {
+    setCanvasHistory([]);
+    onClear();
+  };
+
+  // Undo functionality
+  const handleUndo = () => {
+    if (canvasHistory.length === 0) return;
+    
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    // Get the last state from history
+    const lastState = canvasHistory[canvasHistory.length - 1];
+    
+    // Remove the last state from history
+    setCanvasHistory(prev => prev.slice(0, -1));
+    
+    // Restore the canvas to the previous state
+    const img = new Image();
+    img.onload = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0);
+    };
+    img.src = lastState;
+  };
 
   // Drawing handlers
   const getScale = () => {
@@ -132,9 +180,13 @@ function DrawingCanvas({
     const y = Math.floor((e.clientY - rect.top) * sy);
     
     if (selectedTool === 'bucket') {
+      // Save state before bucket fill
+      saveCanvasState();
       // Handle bucket tool
       floodFill(x, y, color);
     } else {
+      // Save state before starting to draw
+      saveCanvasState();
       // Handle brush tool
       isDrawing.current = true;
       const ctx = canvas.getContext('2d');
@@ -264,59 +316,48 @@ function DrawingCanvas({
         padding: '32px 32px 36px 32px',
       }}
     >
-      {/* Main content area with three columns */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: '200px 1fr 260px',
-          gap: 32,
-          alignItems: 'end',
-          width: '100%',
-          minHeight: '500px',
-        }}
-      >
+      {/* Main content area with symmetrical three-column layout */}
+      <div className="draw-main-grid" style={{ 
+        display: 'grid', 
+        gridTemplateColumns: '280px 1fr 280px', 
+        gap: '2.5rem',
+        width: '100%',
+        alignItems: 'start'
+      }}>
         {/* Controls */}
         <div
           className="draw-controls"
           style={{
+            width: '100%',
             display: 'flex',
             flexDirection: 'column',
-            gap: 18,
+            gap: 12,
             alignItems: 'stretch',
             background: 'none',
             borderRadius: 0,
-            padding: 0,
+            padding: '12px',
             boxShadow: 'none',
-            alignSelf: 'start',
           }}
         >
-        <div style={{ marginBottom: 8, fontWeight: 600, color: '#2563eb', fontSize: 17, textAlign: 'center', width: '100%' }}>
-          Drawing Tools
-        </div>
-        
-        {/* Tool Selection */}
-        <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 16 }}>
-          <label style={{ fontSize: 14, color: '#334155', fontWeight: 500, marginBottom: 8, display: 'block', textAlign: 'center' }}>
-            Select Tool
-          </label>
-          <div style={{ display: 'flex', gap: 8, width: '100%' }}>
+        {/* Tool Selection - Side-by-side buttons */}
+        <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'center', gap: '1rem', width: '100%' }}>
             <button
               onClick={() => onChangeTool('brush')}
               style={{
                 flex: 1,
-                padding: '8px 12px',
+                padding: '16px 12px',
                 borderRadius: 8,
                 background: selectedTool === 'brush' ? 'linear-gradient(90deg, #2563eb 0%, #3b82f6 100%)' : '#e0e7ef',
                 color: selectedTool === 'brush' ? '#fff' : '#2563eb',
                 fontWeight: 600,
                 border: 'none',
                 cursor: 'pointer',
-                fontSize: 14,
+                fontSize: 16,
                 transition: 'all 0.15s',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                gap: 4,
+                gap: 8,
               }}
             >
               🖌️ Brush
@@ -325,30 +366,26 @@ function DrawingCanvas({
               onClick={() => onChangeTool('bucket')}
               style={{
                 flex: 1,
-                padding: '8px 12px',
+                padding: '16px 12px',
                 borderRadius: 8,
                 background: selectedTool === 'bucket' ? 'linear-gradient(90deg, #2563eb 0%, #3b82f6 100%)' : '#e0e7ef',
                 color: selectedTool === 'bucket' ? '#fff' : '#2563eb',
                 fontWeight: 600,
                 border: 'none',
                 cursor: 'pointer',
-                fontSize: 14,
+                fontSize: 16,
                 transition: 'all 0.15s',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                gap: 4,
+                gap: 8,
               }}
             >
               🪣 Bucket
             </button>
           </div>
-        </div>
 
         <div className="color-picker-outer" style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-          <label style={{ fontSize: 14, color: '#334155', fontWeight: 500, marginBottom: 4, display: 'block', textAlign: 'center' }}>
-            Brush Color
-          </label>
           <HexColorPicker color={color} onChange={onChangeColor} />
           <div
             className="color-preview"
@@ -364,9 +401,6 @@ function DrawingCanvas({
         </div>
         {selectedTool === 'brush' && (
           <div className="brush-size-slider-area" style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-            <label style={{ fontSize: 14, color: '#334155', fontWeight: 500, marginBottom: 4, display: 'block', textAlign: 'center' }}>
-              Brush Size
-            </label>
             <input
               type="range"
               min={2}
@@ -405,10 +439,9 @@ function DrawingCanvas({
         )}
         <button
           className="clear-canvas-btn"
-          onClick={onClear}
+          onClick={handleClearWithHistory}
           type="button"
           style={{
-            marginTop: 10,
             padding: '0.5rem 1.2rem',
             borderRadius: 8,
             background: '#e0e7ef',
@@ -419,19 +452,36 @@ function DrawingCanvas({
             width: '100%',
             fontSize: 15,
             transition: 'background 0.15s',
-            alignSelf: 'center',
           }}
         >
           Clear Canvas
         </button>
-        <div style={{ marginTop: 18, fontSize: 13, color: '#64748b', textAlign: 'center', width: '100%' }}>
-          <span>
-            {selectedTool === 'brush' 
-              ? 'Pick a color and brush size, then draw on the canvas.' 
-              : 'Pick a color and click on the canvas to fill areas.'
-            }<br />Click "Clear Canvas" to start over.
-          </span>
-        </div>
+        
+        <button
+          className="undo-btn"
+          onClick={handleUndo}
+          disabled={canvasHistory.length === 0}
+          type="button"
+          style={{
+            padding: '0.5rem 1.2rem',
+            borderRadius: 8,
+            background: canvasHistory.length === 0 ? '#f1f5f9' : '#e0e7ef',
+            color: canvasHistory.length === 0 ? '#94a3b8' : '#2563eb',
+            fontWeight: 600,
+            border: 'none',
+            cursor: canvasHistory.length === 0 ? 'not-allowed' : 'pointer',
+            width: '100%',
+            fontSize: 15,
+            transition: 'all 0.15s',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 6,
+          }}
+        >
+          ↶ Undo
+        </button>
+
         <button
           onClick={onQuit}
           style={{
@@ -444,10 +494,8 @@ function DrawingCanvas({
             fontSize: '1.08rem',
             boxShadow: '0 2px 8px #ef444433',
             border: 'none',
-            marginTop: '1.2rem',
             cursor: 'pointer',
             transition: 'background 0.18s, color 0.18s, box-shadow 0.18s',
-            alignSelf: 'center',
           }}
           onMouseOver={e => {
             e.currentTarget.style.background = 'linear-gradient(90deg, #ef4444 0%, #b91c1c 100%)';
@@ -480,15 +528,14 @@ function DrawingCanvas({
           className="draw-header"
           style={{
             width: '100%',
-            display: 'flex',
-            flexDirection: 'row',
+            display: 'grid',
+            gridTemplateColumns: '1fr auto 1fr',
             alignItems: 'center',
-            justifyContent: 'space-between',
-            marginBottom: 8,
+            marginBottom: 12,
             gap: 10,
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifySelf: 'start' }}>
             {category && (
               <span className="prompt-icon" style={{ fontSize: 22 }}>
                 {getCategoryIcon(category)}
@@ -498,25 +545,23 @@ function DrawingCanvas({
               {category ? category.charAt(0).toUpperCase() + category.slice(1) : ''}
             </span>
           </div>
-          <div className="draw-timer" style={{ fontSize: 18, fontWeight: 700, color: '#0ea5e9' }}>
+          <div
+            className="draw-prompt"
+            style={{
+              fontSize: 24,
+              fontWeight: 700,
+              color: '#334155',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              justifySelf: 'center',
+            }}
+          >
+            Draw: <b>{prompt}</b>
+          </div>
+          <div className="draw-timer" style={{ fontSize: 18, fontWeight: 700, color: '#0ea5e9', justifySelf: 'end' }}>
             ⏰ {timer}s
           </div>
-        </div>
-        <div
-          className="draw-prompt"
-          style={{
-            width: '100%',
-            textAlign: 'center',
-            fontSize: 20,
-            fontWeight: 700,
-            marginBottom: 8,
-            color: '#334155',
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-          }}
-        >
-          Draw: <b>{prompt}</b>
         </div>
         <canvas
           ref={canvasRef}
@@ -582,15 +627,17 @@ function DrawingCanvas({
         <div
           className="draw-chat-panel"
           style={{
+            width: '100%',
             display: 'flex',
             flexDirection: 'column',
             gap: 8,
             alignItems: 'stretch',
             background: 'none',
             borderRadius: 0,
-            padding: 0,
+            padding: '12px',
             boxShadow: 'none',
-            height: '100%',
+            height: '500px',
+            maxHeight: '500px',
           }}
         >
         <div style={{ fontWeight: 700, color: '#2563eb', fontSize: 17, textAlign: 'center', marginBottom: 4 }}>
@@ -611,6 +658,8 @@ function DrawingCanvas({
             display: 'flex',
             flexDirection: 'column',
             gap: 6,
+            minHeight: 0, // Important for flex scrolling
+            maxHeight: '380px', // Fixed height for scrolling
           }}
         >
           {chatMessages.length === 0 && (
@@ -1181,24 +1230,6 @@ function App() {
   /* --------------- Render ----------------------------- */
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-blue-50 via-sky-100 to-indigo-100">
-      {/* Header always at the top */}
-      <header className="w-full flex items-center justify-center py-8 px-4 sm:px-16">
-        <div className="flex items-center justify-between w-full max-w-3xl mx-auto" style={{ minHeight: 64 }}>
-          {/* Left: Back/Menu button */}
-          <div className="flex-1 flex justify-center">
-            {/* Menu button removed */}
-          </div>
-          {/* Center: Title */}
-          <div className="flex-1 flex justify-center items-center">
-            <h1 className="font-extrabold text-3xl sm:text-4xl text-blue-600 tracking-tight drop-shadow-md text-center mx-auto whitespace-nowrap overflow-hidden text-ellipsis" style={{ lineHeight: 'normal', padding: 0, margin: 0 }}>
-              {view === 'draw' && 'Timed Doodle Challenge'}
-            </h1>
-          </div>
-          {/* Right: Spacer for symmetry */}
-          <div className="flex-1" />
-        </div>
-      </header>
-
       {/* Main content area */}
       <main className="flex-1 flex flex-col items-center justify-center w-full">
         {/* ---------- MENU ---------- */}
@@ -1479,7 +1510,7 @@ function App() {
 
         {/* ---------- RESULTS / GALLERY SCREEN ---------- */}
         {view === 'results' && (
-          <div className="min-h-screen w-full flex flex-col items-center justify-center bg-gradient-to-br from-blue-50 via-sky-100 to-indigo-100">
+          <div className="w-full flex flex-col items-center justify-center bg-gradient-to-br from-blue-50 via-sky-100 to-indigo-100">
             <div
               className="results-container"
               style={{
