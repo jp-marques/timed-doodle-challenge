@@ -8,6 +8,7 @@ import './App.css';
 import { io, Socket } from 'socket.io-client';
 import { HexColorPicker } from 'react-colorful';
 import config from './config';
+import ShinyText from './ShinyText';
 
 /* ─────────────────────────────────────────────────── */
 /*                     Types                           */
@@ -1629,10 +1630,12 @@ function App() {
       </main>
 
       {/* Footer always at the bottom */}
-      <footer className="mt-4 mb-2 text-slate-400 text-center text-sm select-none w-full flex justify-center items-center" style={{ minHeight: '32px' }}>
-        <span>
-          Made with <span className="text-sky-400">♥</span> for doodlers • {new Date().getFullYear()}
-        </span>
+      <footer className="mt-4 mb-2 text-center text-sm select-none w-full flex justify-center items-center" style={{ minHeight: '32px' }}>
+        <ShinyText 
+          text={`Made with ♥ for doodlers • ${new Date().getFullYear()}`}
+          // speed={6}
+          className="text-slate-400"
+        />
       </footer>
 
       {/* Loading overlay */}

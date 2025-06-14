@@ -1089,3 +1089,22 @@ header h1 {
     min-height: 250px;
   }
 }
+
+/* Shiny text animation */
+@keyframes shine {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.shiny-text {
+  display: inline-block;
+  background: linear-gradient(120deg, 
+    currentColor 40%, 
+    rgba(255, 255, 255, 0.8) 50%, 
+    currentColor 60%);
+  background-size: 200% 100%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: shine var(--animation-duration, 4s) linear infinite;
+}
