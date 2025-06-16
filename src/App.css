@@ -866,7 +866,7 @@ html:has(.results-container),
   min-height: auto !important;
   max-width: 95% !important;
   width: 95% !important;
-  margin: 0 auto 2rem auto !important;
+  /* margin: 0 auto 2rem auto !important; */
   padding: 2rem 2rem 3rem 2rem !important;
   box-sizing: border-box !important;
 }
