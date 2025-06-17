@@ -279,8 +279,29 @@ function DrawingCanvas({
     const startB = data[startPos + 2];
     const startA = data[startPos + 3];
 
-    // If the target color is the same as fill color, no need to fill
-    if (startR === fillRgb.r && startG === fillRgb.g && startB === fillRgb.b) {
+    // Color matching with tolerance to handle anti-aliasing
+    const TOLERANCE = 32; // Adjustable tolerance value (0-255)
+    
+    const colorMatches = (r: number, g: number, b: number, a: number) => {
+      // Handle transparent pixels - don't fill them unless we started on transparency
+      if (startA === 0 && a === 0) return true;
+      if (startA === 0 && a > 0) return false;
+      if (startA > 0 && a === 0) return false;
+      
+      // For opaque pixels, use color distance with tolerance
+      const deltaR = Math.abs(r - startR);
+      const deltaG = Math.abs(g - startG);
+      const deltaB = Math.abs(b - startB);
+      const deltaA = Math.abs(a - startA);
+      
+      // Use Euclidean distance for better color matching
+      const colorDistance = Math.sqrt(deltaR * deltaR + deltaG * deltaG + deltaB * deltaB);
+      
+      return colorDistance <= TOLERANCE && deltaA <= TOLERANCE;
+    };
+
+    // If the target color is very similar to fill color, no need to fill
+    if (colorMatches(fillRgb.r, fillRgb.g, fillRgb.b, 255)) {
       return;
     }
 
@@ -298,9 +319,8 @@ function DrawingCanvas({
 
       const pos = (y * canvas.width + x) * 4;
       
-      // Check if this pixel matches the original color
-      if (data[pos] === startR && data[pos + 1] === startG && 
-          data[pos + 2] === startB && data[pos + 3] === startA) {
+      // Check if this pixel matches the original color using tolerance
+      if (colorMatches(data[pos], data[pos + 1], data[pos + 2], data[pos + 3])) {
         
         // Fill this pixel
         data[pos] = fillRgb.r;
