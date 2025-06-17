@@ -9,6 +9,7 @@ import { io, Socket } from 'socket.io-client';
 import { HexColorPicker } from 'react-colorful';
 import config from './config';
 import ShinyText from './ShinyText';
+import SplitText from './components/SplitText';
 
 /* ─────────────────────────────────────────────────── */
 /*                     Types                           */
@@ -1281,8 +1282,25 @@ function App() {
         {/* ---------- MENU ---------- */}
         {view === 'menu' && (
           <div className="w-full flex flex-col justify-center items-center">
-            <div className="w-full max-w-md mx-auto bg-white/90 rounded-2xl shadow-xl flex flex-col items-center px-8 py-12 gap-8 animate-fade-in">
-              <h1 className="text-3xl sm:text-4xl font-extrabold text-blue-700 mb-2 text-center">Timed Doodle Challenge</h1>
+            <div className="w-full max-w-md mx-auto bg-white/90 rounded-2xl shadow-xl flex flex-col items-center px-8 py-16 gap-8 animate-fade-in">
+              <div className="w-full px-4 py-8 overflow-visible">
+                <SplitText
+                  text="Timed Doodle Challenge"
+                  className="text-7xl sm:text-8xl font-extrabold text-blue-700 mb-2"
+                delay={80}
+                duration={1.5}
+                ease="elastic.out(1, 0.3)"
+                splitType="words"
+                from={{ opacity: 0, y: 40 }}
+                to={{ opacity: 1, y: 0 }}
+                threshold={0.1}
+                rootMargin="-100px"
+                textAlign="center"
+                onLetterAnimationComplete={() => {
+                  console.log('Timed Doodle Challenge animation complete!');
+                }}
+              />
+              </div>
               <div className="w-full flex flex-col gap-4 items-center">
                 <div className="w-full relative">
                   <input
