@@ -26,53 +26,40 @@ app.use(cors());
 app.use(express.json());
 
 const { getRandomPrompt } = require('./prompts');
+const { validateNickname, validateRoomCode, validateRoundDuration } = require('./validation');
 const rooms = {};
 
-// Enhanced validation function
-const validateNickname = (nickname) => {
-  if (!nickname || typeof nickname !== 'string') {
-    return 'Invalid nickname';
+// Helper: end a round and broadcast results
+function endRound(code) {
+  const room = rooms[code];
+  if (!room) return;
+  if (room.roundTimeout) {
+    clearTimeout(room.roundTimeout);
+    room.roundTimeout = null;
   }
-  
-  const trimmed = nickname.trim();
-  
-  if (trimmed.length < 2) {
-    return 'Nickname must be at least 2 characters';
-  }
-  
-  if (trimmed.length > 15) {
-    return 'Nickname must be 15 characters or less';
-  }
-  
-  if (!/^[a-zA-Z0-9\s._-]+$/.test(trimmed)) {
-    return 'Nickname contains invalid characters';
-  }
-  
-  // Check for excessive whitespace
-  if (trimmed !== trimmed.replace(/\s+/g, ' ')) {
-    return 'Please avoid excessive spaces in your nickname';
-  }
-  
-  return null; // Valid
-};
+  // Emit results once
+  io.to(code).emit('round-end', { drawings: room.drawings });
+  // Cleanup round-specific fields
+  room.endsAt = null;
+  room.participants = null;
+}
 
-const validateRoomCode = (code) => {
-  if (!code || typeof code !== 'string') {
-    return 'Invalid room code';
+// Helper: check if all required participants have submitted
+function maybeEndRoundEarly(code) {
+  const room = rooms[code];
+  if (!room) return;
+  const requiredIds = room.participants || (room.players ? room.players.map(p => p.id) : []);
+  if (requiredIds.length === 0) return;
+  let submittedCount = 0;
+  for (const participantId of requiredIds) {
+    if (room.drawings && room.drawings[participantId]) submittedCount++;
   }
-  
-  const trimmed = code.trim().toUpperCase();
-  
-  if (trimmed.length !== 5) {
-    return 'Room code must be 5 characters';
+  if (submittedCount >= requiredIds.length) {
+    endRound(code);
   }
-  
-  if (!/^[A-Z0-9]+$/.test(trimmed)) {
-    return 'Room code contains invalid characters';
-  }
-  
-  return null; // Valid
-};
+}
+
+// Validation helpers imported from ./validation
 
 io.on('connection', (socket) => {
   console.log('Client connected:', socket.id);
@@ -109,6 +96,7 @@ io.on('connection', (socket) => {
         }],
         drawings: {},
         prompt: null,
+        roundDuration: 60, // Default round duration
         createdAt: Date.now()
       };
 
@@ -188,27 +176,62 @@ io.on('connection', (socket) => {
       }
     }
   });
-  socket.on('start-round', (code) => {
-    if (rooms[code] && socket.id === rooms[code].host) {
-      const { prompt, category } = getRandomPrompt();
-      rooms[code].prompt = prompt;
-      rooms[code].category = category;
-      rooms[code].drawings = {};
-      // Reset ready status for next round
-      rooms[code].players.forEach(p => {
-        if (p.id !== rooms[code].host) p.isReady = false;
-      });
-      io.to(code).emit('round-start', { prompt, duration: 60 });
+  socket.on('start-round', ({ code, duration }) => {
+    try {
+      // Validate room code
+      const codeValidationError = validateRoomCode(code);
+      if (codeValidationError) {
+        console.error('Invalid room code in start-round:', codeValidationError);
+        return;
+      }
+
+      // Validate duration
+      const durationValidationError = validateRoundDuration(duration);
+      if (durationValidationError) {
+        console.error('Invalid duration in start-round:', durationValidationError);
+        return;
+      }
+
+      const trimmedCode = code.trim().toUpperCase();
+
+      if (rooms[trimmedCode] && socket.id === rooms[trimmedCode].host) {
+        const room = rooms[trimmedCode];
+        const { prompt, category } = getRandomPrompt();
+        room.prompt = prompt;
+        room.category = category;
+        room.drawings = {};
+        // Snapshot participants at round start
+        room.participants = room.players.map(p => p.id);
+        // Reset ready status for next round (non-host only)
+        room.players.forEach(p => {
+          if (p.id !== room.host) p.isReady = false;
+        });
+        // Server-enforced deadline
+        const endsAt = Date.now() + duration * 1000;
+        room.endsAt = endsAt;
+        if (room.roundTimeout) clearTimeout(room.roundTimeout);
+        room.roundTimeout = setTimeout(() => endRound(trimmedCode), duration * 1000);
+
+        io.to(trimmedCode).emit('round-start', { prompt, duration, category, endsAt });
+        console.log(`Round started in room ${trimmedCode} with duration ${duration}s (endsAt=${endsAt})`);
+      } else {
+        console.error('Unauthorized start-round attempt or room not found');
+      }
+    } catch (error) {
+      console.error('Error in start-round:', error);
     }
   });
 
   socket.on('submit-drawing', ({ code, drawing }) => {
-    if (rooms[code]) {
-      rooms[code].drawings[socket.id] = drawing;
-      if (Object.keys(rooms[code].drawings).length === rooms[code].players.length) {
-        io.to(code).emit('round-end', { drawings: rooms[code].drawings });
-      }
-    }
+    const room = rooms[code];
+    if (!room) return;
+    const now = Date.now();
+    // Ignore late submissions
+    if (room.endsAt && now > room.endsAt) return;
+    // Only accept from players in the room
+    if (!room.players.find(p => p.id === socket.id)) return;
+    room.drawings[socket.id] = drawing;
+    maybeEndRoundEarly(code);
   });
 
   socket.on('chat-message', ({ code, text, nickname, id, time }) => {
@@ -248,14 +271,21 @@ io.on('connection', (socket) => {
   socket.on('disconnecting', () => {
     for (const code of socket.rooms) {
       if (rooms[code]) {
-        rooms[code].players = rooms[code].players.filter(p => p.id !== socket.id);
+        const room = rooms[code];
+        room.players = room.players.filter(p => p.id !== socket.id);
+        // If disconnect happens during a round, remove from required participants
+        if (room.participants && Array.isArray(room.participants)) {
+          room.participants = room.participants.filter(id => id !== socket.id);
+          // If everyone remaining has already submitted, end early
+          maybeEndRoundEarly(code);
+        }
         // If host left, delete the room
-        if (socket.id === rooms[code].host) {
+        if (socket.id === room.host) {
           io.to(code).emit('host-left');
           delete rooms[code];
-        } else if (rooms[code].players.length > 0) {
+        } else if (room.players.length > 0) {
           // Update lobby for remaining players
-          io.to(code).emit('lobby-update', rooms[code].players);
+          io.to(code).emit('lobby-update', room.players);
         } else {
           delete rooms[code];
         }
