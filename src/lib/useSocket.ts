@@ -17,14 +17,39 @@ export function useSocket(): React.MutableRefObject<Socket | null> {
       });
       const socket = socketRef.current;
       socket.connect();
-      const onConnect = () => console.log('Successfully connected to server');
+      let connectAlertTimer: number | undefined;
+
+      const startAlertTimer = () => {
+        if (connectAlertTimer) window.clearTimeout(connectAlertTimer);
+        connectAlertTimer = window.setTimeout(() => {
+          if (!socket.connected) {
+            alert(
+              'Still unable to connect to the game server. If this persists, the backend may be down. Please try again later.'
+            );
+          }
+        }, 120000); // 2 minutes
+      };
+
+      // Start timer immediately on mount in case backend is cold starting
+      startAlertTimer();
+
+      const onConnect = () => {
+        console.log('Successfully connected to server');
+        if (connectAlertTimer) {
+          window.clearTimeout(connectAlertTimer);
+          connectAlertTimer = undefined;
+        }
+      };
       const onConnectError = (error: unknown) => {
         console.error('Connection error:', error);
-        alert('Unable to connect to game server. Please try again later.');
+        // Do not alert immediately; only if it lasts 2 minutes
+        startAlertTimer();
       };
       const onDisconnect = (reason: string) => {
         console.log('Disconnected:', reason);
         if (reason === 'io server disconnect') socket.connect();
+        // Start/restart the long timer while disconnected
+        startAlertTimer();
       };
       socket.on('connect', onConnect);
       socket.on('connect_error', onConnectError);
@@ -33,16 +58,18 @@ export function useSocket(): React.MutableRefObject<Socket | null> {
         socket.off('connect', onConnect);
         socket.off('connect_error', onConnectError);
         socket.off('disconnect', onDisconnect);
+        if (connectAlertTimer) window.clearTimeout(connectAlertTimer);
         socket.disconnect();
       };
     } catch (error) {
       console.error('Failed to initialize socket:', error);
-      alert('Failed to initialize game connection');
+      // Avoid immediate popups; leave UI to indicate offline state
     }
   }, []);
 
   return socketRef;
 }
+
 
 
 

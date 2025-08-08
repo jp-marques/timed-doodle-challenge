@@ -30,6 +30,7 @@ function App() {
   const [category, setCategory] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
+  const [showColdStartTip, setShowColdStartTip] = useState(false);
 
   /* --------------- Canvas / drawing state ------------- */
   const canvasRef = useRef<HTMLCanvasElement>(null) as React.RefObject<HTMLCanvasElement>;
@@ -58,6 +59,29 @@ function App() {
       socket.off('disconnect', onDisconnect);
     };
   }, []);
+
+  // Show a one-time tip if backend is waking up (cold start)
+  useEffect(() => {
+    let timer: number | undefined;
+    const dismissed = localStorage.getItem('coldStartTipDismissed') === 'true';
+    if (!dismissed && view === 'menu' && !isConnected) {
+      timer = window.setTimeout(() => {
+        if (!isConnected) setShowColdStartTip(true);
+      }, 2000);
+    }
+    return () => {
+      if (timer) window.clearTimeout(timer);
+    };
+  }, [view, isConnected]);
+
+  useEffect(() => {
+    if (isConnected) setShowColdStartTip(false);
+  }, [isConnected]);
+
+  const dismissColdStartTip = (dontShowAgain?: boolean) => {
+    setShowColdStartTip(false);
+    if (dontShowAgain) localStorage.setItem('coldStartTipDismissed', 'true');
+  };
 
   /* --------------- Chat state ------------------------- */
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
@@ -424,6 +448,19 @@ function App() {
       )}
 
       {loading && <div className="overlay">Loading…</div>}
+
+      {showColdStartTip && (
+        <div className="toast" role="status" aria-live="polite">
+          <div className="toast-title">Server is waking up</div>
+          <div className="toast-body">
+            If you see "Offline" briefly, the backend may be starting up on the free tier. It can take up to ~60 seconds and will connect automatically.
+          </div>
+          <div className="toast-actions">
+            <button className="btn" onClick={() => dismissColdStartTip(false)}>Got it</button>
+            <button className="btn secondary" onClick={() => dismissColdStartTip(true)}>Don't show again</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
