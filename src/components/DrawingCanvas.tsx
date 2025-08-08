@@ -130,7 +130,8 @@ export default function DrawingCanvas(props: DrawingCanvasProps) {
     const y = (e.clientY - rect.top) * sy;
     hasMoved.current = true;
     ctx.strokeStyle = color;
-    ctx.lineWidth = brushSize;
+    // Scale line width by device pixel ratio to keep visual thickness consistent
+    ctx.lineWidth = brushSize * sx;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
     ctx.beginPath();
@@ -147,10 +148,11 @@ export default function DrawingCanvas(props: DrawingCanvasProps) {
         const ctx = canvas.getContext('2d');
         if (ctx) {
           ctx.strokeStyle = color;
-          ctx.lineWidth = brushSize;
+          const { sx } = getScale();
+          ctx.lineWidth = brushSize * sx;
           ctx.lineCap = 'round';
           ctx.beginPath();
-          ctx.arc(lastPoint.current.x, lastPoint.current.y, brushSize / 2, 0, Math.PI * 2);
+          ctx.arc(lastPoint.current.x, lastPoint.current.y, (brushSize * sx) / 2, 0, Math.PI * 2);
           ctx.fillStyle = color;
           ctx.fill();
         }

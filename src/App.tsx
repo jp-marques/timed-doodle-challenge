@@ -35,10 +35,18 @@ function App() {
   const [showColdStartTip, setShowColdStartTip] = useState(false);
   // Used to force re-binding of socket listeners after explicit cleanup
   const [listenerKey, setListenerKey] = useState(0);
+  // Server-synchronized deadline for current round
+  const [endsAt, setEndsAt] = useState<number | null>(null);
+  const autoSubmitTimeoutRef = useRef<number | null>(null);
+  const countdownIntervalRef = useRef<number | null>(null);
 
   /* --------------- Canvas / drawing state ------------- */
   const canvasRef = useRef<HTMLCanvasElement>(null) as React.RefObject<HTMLCanvasElement>;
   const [myDrawing, setMyDrawing] = useState<string | null>(null);
+  const myDrawingRef = useRef<string | null>(null);
+  useEffect(() => {
+    myDrawingRef.current = myDrawing;
+  }, [myDrawing]);
   const [brushColor, setBrushColor] = useState('#2563eb');
   const [brushSize, setBrushSize] = useState(8);
   const [selectedTool, setSelectedTool] = useState<'brush' | 'bucket'>('brush');
@@ -122,6 +130,16 @@ function App() {
     setPlayers([]);
     setIsHost(false);
     setChatMessages([]); // Clear chat messages when leaving room
+    // Clear any in-flight timers
+    if (autoSubmitTimeoutRef.current) {
+      window.clearTimeout(autoSubmitTimeoutRef.current);
+      autoSubmitTimeoutRef.current = null;
+    }
+    if (countdownIntervalRef.current) {
+      window.clearInterval(countdownIntervalRef.current);
+      countdownIntervalRef.current = null;
+    }
+    setEndsAt(null);
   }, [socketRef]);
 
   // Socket lifecycle is handled by useSocket
@@ -150,16 +168,26 @@ function App() {
       prompt,
       duration,
       category,
+      endsAt: serverEndsAt,
     }: {
       prompt: string;
       duration: number;
       category?: string;
+      endsAt?: number;
     }) {
       // Ignore if we've left the room
       if (!currentRoomRef.current) return;
       setPrompt(prompt);
       setCategory(category || null);
-      setTimer(duration);
+      // Prefer server-provided deadline when available
+      if (typeof serverEndsAt === 'number' && Number.isFinite(serverEndsAt)) {
+        setEndsAt(serverEndsAt);
+        const secondsRemaining = Math.max(0, Math.ceil((serverEndsAt - Date.now()) / 1000));
+        setTimer(secondsRemaining);
+      } else {
+        setEndsAt(null);
+        setTimer(duration);
+      }
       setMyDrawing(null);
       setView('draw');
       
@@ -184,6 +212,16 @@ function App() {
       if (!currentRoomRef.current) return;
       setDrawings(drawings);
       setView('results');
+      // Cleanup timers at round end
+      if (autoSubmitTimeoutRef.current) {
+        window.clearTimeout(autoSubmitTimeoutRef.current);
+        autoSubmitTimeoutRef.current = null;
+      }
+      if (countdownIntervalRef.current) {
+        window.clearInterval(countdownIntervalRef.current);
+        countdownIntervalRef.current = null;
+      }
+      setEndsAt(null);
     }
 
     function onHostLeft() {
@@ -212,20 +250,74 @@ function App() {
     };
   }, [handleBack, listenerKey]);
 
-  /* --------------- Timer effect ----------------------- */
+  /* --------------- Server-synced timer ----------------- */
   useEffect(() => {
-    let interval: number;
-    if (view === 'draw' && timer > 0) {
-      interval = window.setInterval(() => {
-        setTimer((t) => {
-          const newTime = t - 1;
-          if (newTime <= 0) handleSubmitDrawing();
-          return newTime;
-        });
-      }, 1000);
+    // Clear any prior interval
+    if (countdownIntervalRef.current) {
+      window.clearInterval(countdownIntervalRef.current);
+      countdownIntervalRef.current = null;
     }
-    return () => clearInterval(interval);
-  }, [view, timer, handleSubmitDrawing]);
+    if (view === 'draw' && endsAt) {
+      // Initialize immediately
+      setTimer(Math.max(0, Math.ceil((endsAt - Date.now()) / 1000)));
+      countdownIntervalRef.current = window.setInterval(() => {
+        setTimer(Math.max(0, Math.ceil(((endsAt as number) - Date.now()) / 1000)));
+      }, 500);
+    }
+    return () => {
+      if (countdownIntervalRef.current) {
+        window.clearInterval(countdownIntervalRef.current);
+        countdownIntervalRef.current = null;
+      }
+    };
+  }, [view, endsAt]);
+
+  // Auto-submit slightly before the server deadline to avoid late rejection
+  useEffect(() => {
+    if (autoSubmitTimeoutRef.current) {
+      window.clearTimeout(autoSubmitTimeoutRef.current);
+      autoSubmitTimeoutRef.current = null;
+    }
+    if (view === 'draw' && endsAt) {
+      const cushionMs = 1500; // submit early to beat server cutoff and timer clamping
+      const delay = Math.max(0, endsAt - Date.now() - cushionMs);
+      autoSubmitTimeoutRef.current = window.setTimeout(() => {
+        if (!currentRoomRef.current) return;
+        if (!myDrawingRef.current) {
+          handleSubmitDrawing();
+        }
+      }, delay);
+    }
+    return () => {
+      if (autoSubmitTimeoutRef.current) {
+        window.clearTimeout(autoSubmitTimeoutRef.current);
+        autoSubmitTimeoutRef.current = null;
+      }
+    };
+  }, [view, endsAt, handleSubmitDrawing]);
+
+  // If user submits early, no need to run the auto-submit later
+  useEffect(() => {
+    if (myDrawing && autoSubmitTimeoutRef.current) {
+      window.clearTimeout(autoSubmitTimeoutRef.current);
+      autoSubmitTimeoutRef.current = null;
+    }
+  }, [myDrawing]);
+
+  // Fallback local timer if server-sent endsAt is unavailable
+  useEffect(() => {
+    if (endsAt || view !== 'draw' || timer <= 0) return;
+    const id = window.setInterval(() => {
+      setTimer((t) => {
+        const newTime = t - 1;
+        if (newTime <= 0 && !myDrawingRef.current) {
+          handleSubmitDrawing();
+        }
+        return newTime;
+      });
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, [view, endsAt, timer, handleSubmitDrawing]);
 
   /* --------------- Validation helpers ---------------- */
   // Imported from lib/validation
