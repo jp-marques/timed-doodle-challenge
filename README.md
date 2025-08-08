@@ -4,8 +4,10 @@ A small multiplayer drawing game where friends join a room, get a prompt, and tr
 
 ## Live
 
-- Frontend (Vercel): [timed-doodle-challenge.vercel.app](https://timed-doodle-challenge.vercel.app)
+- Frontend (Vercel): [timed-doodle-challenge.vercel.app](https://timed-doodle-challenge.vercel.app) 
 - Backend (Render): [timed-doodle-challenge.onrender.com](https://timed-doodle-challenge.onrender.com)
+
+> Note: The backend runs on Render’s free tier. **Please be patient :)** - cold starts can take around 60 seconds. If it seems slow or times out at first, wait a moment and try again while the server spins up.
 
 ## Features
 
@@ -81,8 +83,3 @@ Timer model
 - Styling: Tailwind for quick, consistent UI without heavy CSS tooling.
 - Room codes: 5 characters to be easy to share; collisions are retried.
 - Validation: Guardrails on names, timers (15–300s), and chat length to prevent abuse and keep the UI stable.
-
-### Scaling notes
-- Single instance: in‑memory rooms are fine and very fast.
-- Multiple instances: move room state to Redis and use the Socket.IO Redis adapter with sticky sessions at the load balancer.
-- Persistence: if you need to save drawings, store binary blobs in object storage and keep only metadata in your DB.
