@@ -19,6 +19,8 @@ function App() {
     'menu' | 'nickname' | 'host' | 'join' | 'lobby' | 'draw' | 'results'
   >('menu');
   const [roomCode, setRoomCode] = useState('');
+  // Keep a ref of the current room to avoid race conditions with async events
+  const currentRoomRef = useRef<string>('');
   const [inputCode, setInputCode] = useState('');
   const [nickname, setNickname] = useState('');
   const [players, setPlayers] = useState<Player[]>([]);
@@ -31,6 +33,8 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
   const [showColdStartTip, setShowColdStartTip] = useState(false);
+  // Used to force re-binding of socket listeners after explicit cleanup
+  const [listenerKey, setListenerKey] = useState(0);
 
   /* --------------- Canvas / drawing state ------------- */
   const canvasRef = useRef<HTMLCanvasElement>(null) as React.RefObject<HTMLCanvasElement>;
@@ -89,6 +93,24 @@ function App() {
 
   /* --------------- Navigation ------------------------- */
   const handleBack = useCallback(() => {
+    // Proactively leave the socket room so server stops sending round events
+    const socket = socketRef.current;
+    const code = currentRoomRef.current;
+    if (socket && code) {
+      try {
+        socket.emit('leave-room', code);
+        // Also remove listeners so no further events trigger alerts/UI
+        socket.removeAllListeners('lobby-update');
+        socket.removeAllListeners('round-start');
+        socket.removeAllListeners('round-end');
+        socket.removeAllListeners('host-left');
+        socket.removeAllListeners('chat-message');
+      } catch {}
+    }
+    // Clear ref immediately so any in-flight events are ignored
+    currentRoomRef.current = '';
+    // Force rebind of listeners on next tick
+    setListenerKey((k) => k + 1);
     setView('menu');
     setRoomCode('');
     setInputCode('');
@@ -100,7 +122,7 @@ function App() {
     setPlayers([]);
     setIsHost(false);
     setChatMessages([]); // Clear chat messages when leaving room
-  }, []);
+  }, [socketRef]);
 
   // Socket lifecycle is handled by useSocket
 
@@ -118,6 +140,9 @@ function App() {
     if (!socket) return;
 
     function onLobbyUpdate(updatedPlayers: Player[]) {
+      // Accept lobby updates even if currentRoomRef is not yet set.
+      // This avoids a race where the server emits immediately after join,
+      // before we store the room code locally.
       setPlayers(updatedPlayers);
     }
 
@@ -130,6 +155,8 @@ function App() {
       duration: number;
       category?: string;
     }) {
+      // Ignore if we've left the room
+      if (!currentRoomRef.current) return;
       setPrompt(prompt);
       setCategory(category || null);
       setTimer(duration);
@@ -153,16 +180,20 @@ function App() {
     }
 
     function onRoundEnd({ drawings }: { drawings: Record<string, string> }) {
+      // Ignore if we've left the room
+      if (!currentRoomRef.current) return;
       setDrawings(drawings);
       setView('results');
     }
 
     function onHostLeft() {
+      if (!currentRoomRef.current) return;
       alert('Host has left the game');
       handleBack();
     }
 
     function onChatMessage(msg: ChatMessage) {
+      if (!currentRoomRef.current) return;
       setChatMessages((prev) => [...prev.slice(-49), msg]); // keep last 50
     }
 
@@ -179,7 +210,7 @@ function App() {
       socket.off('host-left', onHostLeft);
       socket.off('chat-message', onChatMessage);
     };
-  }, [handleBack]);
+  }, [handleBack, listenerKey]);
 
   /* --------------- Timer effect ----------------------- */
   useEffect(() => {
@@ -251,6 +282,7 @@ function App() {
         return;
       }
       setRoomCode(response.code);
+      currentRoomRef.current = response.code;
       setIsHost(true);
       setChatMessages([]); // Clear chat messages when joining new room
       setView('lobby');
@@ -281,6 +313,7 @@ function App() {
         setLoading(false);
         if (res.success) {
           setRoomCode(inputCode);
+          currentRoomRef.current = inputCode;
           setIsHost(false);
           setChatMessages([]); // Clear chat messages when joining new room
           setView('lobby');

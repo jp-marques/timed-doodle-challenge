@@ -10,7 +10,7 @@ export default function ResultsGrid({ drawings, players }: { drawings: Record<st
 
   return (
     <>
-      <div className="results-grid" style={{ width: '100%', display: 'flex', flexWrap: 'wrap', gap: 16 }}>
+      <div className="results-grid" style={{ width: '100%' }}>
         {pagedEntries.map(([id, url], idx) => {
           const player = players.find((p) => p.id === id);
           return (
@@ -34,16 +34,16 @@ export default function ResultsGrid({ drawings, players }: { drawings: Record<st
         })}
       </div>
       {totalPages > 1 && (
-        <div style={{ display: 'flex', gap: 12, justifyContent: 'center', margin: '18px 0 0 0' }}>
-          <button className="game-btn" style={{ minWidth: 80 }} onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0}>
+        <div className="row" style={{ justifyContent: 'center', gap: 12, margin: '18px 0 0 0' }}>
+          <button className="btn" style={{ minWidth: 96 }} onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0}>
             Previous
           </button>
-          <span style={{ alignSelf: 'center', fontWeight: 600, color: '#2563eb' }}>
+          <span className="muted" style={{ alignSelf: 'center', fontWeight: 600 }}>
             Page {page + 1} / {totalPages}
           </span>
           <button
-            className="game-btn"
-            style={{ minWidth: 80 }}
+            className="btn"
+            style={{ minWidth: 96 }}
             onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
             disabled={page === totalPages - 1}
           >

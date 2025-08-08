@@ -26,7 +26,7 @@ export function JoinView({
       </div>
       <input
         className="input"
-        placeholder="ABCDE"
+        placeholder="e.g. ABCDE"
         value={inputCode}
         onChange={(e) => setInputCode(e.target.value.toUpperCase())}
         maxLength={5}

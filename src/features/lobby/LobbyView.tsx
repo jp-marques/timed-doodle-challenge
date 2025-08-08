@@ -28,7 +28,7 @@ export function LobbyView({
       <div>
         Room code: <code>{roomCode}</code>
       </div>
-      <div className="list" style={{ marginTop: 12 }}>
+      <div className="list narrow" style={{ marginTop: 12 }}>
         {players.map((p) => (
           <div key={p.id} className="list-item row between">
             <div>

@@ -270,6 +270,41 @@ io.on('connection', (socket) => {
     }
   });
 
+  // Allow clients to explicitly leave a room without disconnecting entirely
+  socket.on('leave-room', (code) => {
+    try {
+      if (!code || typeof code !== 'string') return;
+      const trimmedCode = code.trim().toUpperCase();
+      const room = rooms[trimmedCode];
+      if (!room) return;
+
+      // Remove the player from the room state
+      room.players = room.players.filter((p) => p.id !== socket.id);
+
+      // Remove from required participants if a round is active
+      if (room.participants && Array.isArray(room.participants)) {
+        room.participants = room.participants.filter((id) => id !== socket.id);
+        // If everyone remaining has already submitted, end early
+        maybeEndRoundEarly(trimmedCode);
+      }
+
+      // Make the socket leave the Socket.IO room so it no longer receives events
+      socket.leave(trimmedCode);
+
+      // Handle host leaving or room cleanup
+      if (socket.id === room.host) {
+        io.to(trimmedCode).emit('host-left');
+        delete rooms[trimmedCode];
+      } else if (room.players.length > 0) {
+        io.to(trimmedCode).emit('lobby-update', room.players);
+      } else {
+        delete rooms[trimmedCode];
+      }
+    } catch (error) {
+      console.error('Error in leave-room:', error);
+    }
+  });
+
   socket.on('disconnecting', () => {
     for (const code of socket.rooms) {
       if (rooms[code]) {
