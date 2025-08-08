@@ -1,1110 +1,161 @@
-body, html {
-  min-height: 100vh;
-  min-width: 100vw;
+/* Super minimal, neutral UI */
+
+:root {
+  --bg: #ffffff;
+  --text: #222222;
+  --muted: #6b7280;
+  --line: #e5e7eb;
+  --primary: #0ea5e9;
+  --danger: #ef4444;
+}
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
   margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-  font-family: 'Segoe UI', 'Inter', 'Arial', sans-serif;
-  background: linear-gradient(135deg, #e0e7ff 0%, #f0f9ff 100%) !important;
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji";
+  background: var(--bg);
+  color: var(--text);
 }
 
-#root {
-  min-height: 100vh;
-  min-width: 100vw;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: none;
-  padding: 0;
-}
-
-.container {
+.page {
+  min-height: 100%;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  padding: 3.5rem 2vw 2.5rem 2vw;
-  min-height: 90vh;
-  max-height: 95vh;
-  overflow: hidden;
-  background: rgba(255,255,255,0.93);
-  border-radius: 32px;
-  box-shadow: 0 8px 48px 0 #6366f133, 0 1.5px 8px #60a5fa22;
-  backdrop-filter: blur(8px) saturate(1.2);
-  border: 1.5px solid #e0e7ef;
-  position: relative;
-  transition: box-shadow 0.3s;
-}
-
-header {
-  margin-bottom: 0.7rem !important;
-  width: 100%;
-  text-align: center;
-  position: relative;
-}
-
-header h1 {
-  font-size: 2.2rem !important;
-  margin: 0.2rem 0 0.3rem 0 !important;
-  font-weight: 900;
-  letter-spacing: 0.01em;
-  color: #2563eb;
-  text-shadow: 0 2px 8px #60a5fa22;
-  margin: 0 auto !important;
-  width: 100%;
-  text-align: center;
-}
-
-.logo {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  margin: 0 auto 1rem auto;
-}
-
-.draw h2 {
-  font-size: 1.5rem;
-  font-weight: 700;
-  margin: 0 0 0.5rem 0;
-  color: #1e293b;
-}
-
-.draw p {
-  margin: 0 0 1rem 0;
-  font-size: 1.1rem;
-  color: #475569;
-}
-
-.menu, .host, .join, .draw, .results {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 2.2rem;
-  width: 100%;
-  max-width: 440px;
-  margin: 0 auto;
-  padding: 3.5rem 2vw 2.5rem 2vw;
-  background: rgba(255,255,255,0.93);
-  border-radius: 32px;
-  box-shadow: 0 8px 48px 0 #6366f133, 0 1.5px 8px #60a5fa22;
-  position: relative;
-}
-
-.game-btn {
-  background: linear-gradient(90deg, #38bdf8 0%, #6366f1 100%);
-  color: #fff;
-  opacity: 1;
-  font-weight: 700;
-  box-shadow: 0 2px 12px #60a5fa44;
-  border: none;
-  border-radius: 12px;
-  padding: 0.9rem 2.2rem;
-  font-size: 1.18rem;
-  transition: background 0.2s, box-shadow 0.2s, transform 0.1s;
-  cursor: pointer;
-  margin-top: 0.5rem;
-  margin-bottom: 0.3rem;
-  display: inline-block;
-}
-.game-btn:hover {
-  background: linear-gradient(90deg, #0ea5e9 0%, #4f46e5 100%);
-  box-shadow: 0 4px 18px #6366f144;
-  transform: translateY(-2px) scale(1.04);
-}
-.game-btn:disabled, .game-btn[disabled] {
-  opacity: 0.6;
-  background: linear-gradient(90deg, #cbd5e1 0%, #e0e7ef 100%);
-  color: #64748b;
-  cursor: not-allowed;
-  box-shadow: none;
-}
-
-input {
-  padding: 0.7rem;
-  font-size: 1.1rem;
-  border-radius: 8px;
-  border: 1.5px solid #bae6fd;
-  background: #f1f5f9;
-  color: #222;
-  transition: border 0.2s;
-  /* Prevent browser dark mode from overriding text color */
-  color-scheme: light;
-}
-input:focus {
-  border: 1.5px solid #38bdf8;
-  outline: none;
-}
-
-input[type="text"] {
-  width: 100%;
-  max-width: 300px;
-  text-align: center;
-}
-
-.back-button {
-  position: absolute;
-  top: 1.2rem;
-  left: 1.2rem;
-  background: #64748b;
-  font-size: 1rem;
-  padding: 0.5rem 1.2rem;
-  border-radius: 6px;
-  color: #fff;
-  z-index: 10;
-  box-shadow: 0 2px 8px #64748b22;
-  opacity: 0.95;
-}
-.back-button:hover {
-  background: #334155;
-  opacity: 1;
-}
-
-.hint {
-  color: #666;
-  font-size: 0.9rem;
-  margin-top: -0.5rem;
-}
-
-.gallery {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 16px;
-  justify-content: center;
-  max-width: 100vw;
-  margin: 1rem 0;
-}
-
-canvas {
-  max-width: 100%;
-  box-shadow: 0 2px 8px #60a5fa22;
-  border-radius: 10px;
-  margin-bottom: 1rem;
-}
-
-.nickname, .lobby {
-  text-align: center;
-}
-
-.actions {
-  display: flex;
-  gap: 1rem;
-  margin-top: 1rem;
-}
-
-.players-list {
-  background: #f1f5f9;
-  padding: 1.2rem;
-  border-radius: 12px;
-  min-width: 220px;
-  margin: 1rem 0;
-  box-shadow: 0 2px 8px #60a5fa11;
-}
-
-.player {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.7rem 0.2rem;
-  border-bottom: 1px solid #e0e7ef;
-  font-size: 1.1rem;
-}
-
-.player:last-child {
-  border-bottom: none;
-}
-
-.ready {
-  color: #22c55e;
-  font-weight: 700;
-  font-size: 1.2rem;
-}
-
-button.ready {
-  background: linear-gradient(90deg, #22d3ee 0%, #22c55e 100%);
-  color: #fff !important;
-}
-
-button.ready:hover {
-  background: linear-gradient(90deg, #06b6d4 0%, #16a34a 100%);
-  color: #fff !important;
-}
-
-.drawing-card {
-  width: 100%;
-  max-width: 520px;
-  margin: 0 auto;
-  background: #fff;
-  border-radius: 1.4rem;
-  box-shadow: 0 4px 20px #60a5fa22;
-  padding: 32px 18px 22px 18px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  border: 1.5px solid #e0e7ef;
-}
-
-.drawing-card img {
-  width: 100%;
-  max-width: 480px;
-  height: auto;
-  display: block;
-  border-radius: 1rem;
-  background: #fff;
-  margin-bottom: 18px;
-  box-shadow: 0 4px 10px #60a5fa11;
-}
-
-.player-name {
-  font-size: 1rem;
-  color: #64748b;
-  margin: 0;
-  font-weight: 600;
-}
-
-/* Prompt styling */
-.prompt-category {
-  display: flex;
-  align-items: center;
-  gap: 0.7rem;
-  font-size: 1.1rem;
-  color: #6366f1;
-  font-weight: 600;
-  margin-bottom: 0.5rem;
-}
-.prompt-icon {
-  font-size: 1.5rem;
-}
-
-/* Responsive design */
-@media (max-width: 600px) {
-  .container {
-    justify-content: flex-start;
-    padding-top: 4rem;
-    max-width: 99vw;
-    padding: 0.1rem 0.1rem 0.3rem 0.1rem;
-  }
-  .gallery {
-    gap: 8px;
-  }
-  .drawing-card {
-    min-width: 110px;
-    padding: 0.4rem 0.2rem;
-  }
-  .players-list {
-    min-width: 120px;
-    padding: 0.7rem;
-  }
-  input[type="text"] {
-    max-width: 250px;
-  }
-}
-
-.drawing-canvas-area {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+  align-items: stretch;
   justify-content: flex-start;
-  background: rgba(236,245,255,0.95);
-  border-radius: 24px;
-  padding: 1.5rem;
-  margin: 0.5rem auto;
-  width: 100%;
-  max-width: 1200px;
-  box-shadow: 0 4px 24px 0 #60a5fa22;
-  border: 1.5px solid #bae6fd;
-  position: relative;
+  padding: 32px;
+  gap: 24px;
 }
 
-.drawing-controls {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 2rem;
-  width: 100%;
-  max-width: 900px;
-  margin: 0 auto 1rem auto;
-  padding: 0.8rem 1.5rem;
-  border-radius: 16px;
-  background: rgba(255,255,255,0.95);
-  box-shadow: 0 2px 8px #60a5fa22;
-  position: relative;
-  z-index: 2;
-}
-
-.color-picker {
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
-  border: 2px solid #bae6fd;
-  background: #fff;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-.color-picker:hover {
-  border-color: #38bdf8;
-  transform: scale(1.05);
-}
-
-.brush-size-control {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  flex: 1;
-  max-width: 300px;
-}
-
-.brush-size-control span {
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: #475569;
-}
-
-.brush-size-slider {
-  width: 100%;
-  accent-color: #38bdf8;
-  height: 6px;
-  cursor: pointer;
-}
-
-.brush-size-slider::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 18px;
-  height: 18px;
-  background: #38bdf8;
-  border-radius: 50%;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.brush-size-slider::-webkit-slider-thumb:hover {
-  transform: scale(1.2);
-  background: #0ea5e9;
-}
-
-.clear-canvas-btn {
-  background: #ef4444;
-  padding: 0.6rem 1.2rem;
-  font-size: 1rem;
-  font-weight: 600;
-  border-radius: 10px;
-  color: #fff;
-  border: none;
-  box-shadow: 0 2px 6px #ef444422;
-  transition: all 0.2s ease;
-}
-
-.clear-canvas-btn:hover {
-  background: #dc2626;
-  transform: translateY(-1px) scale(1.05);
-  box-shadow: 0 4px 12px #ef444433;
-}
-
-/* Remove unnecessary elements */
-.brush-style-select, .brush-size-label, .brush-preview-label {
-  display: none !important;
-}
-
-.drawing-canvas-area canvas {
-  width: 100%;
-  aspect-ratio: 16/9;
-  height: auto;
-  max-height: 70vh;
-  min-height: 400px;
-  background: #fff;
-  border-radius: 16px;
-  box-shadow: 0 2px 12px #60a5fa22;
-  border: 2px solid #bae6fd;
-  margin: 0 auto;
-  display: block;
-  z-index: 1;
-  /* cursor: crosshair; */ /* Removed to allow custom tool cursors */
-}
-
-/* --- Drawing controls layout fix --- */
-.brush-size-slider-area {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.3rem;
-  min-width: 120px;
-  width: 140px;
-}
-.brush-preview-row {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-top: 0.2rem;
-  min-height: 32px;
-}
-.brush-preview-circle {
-  border-radius: 50%;
-  border: 2px solid #e0e7ef;
-  box-shadow: 0 1px 4px #60a5fa33;
-  background: #2563eb;
-  transition: width 0.1s, height 0.1s;
-}
-.brush-size-label {
-  font-size: 13px;
-  color: #64748b;
-  min-width: 32px;
-  text-align: left;
-}
-
-/* --- Make container scrollable if needed --- */
-.container {
-  overflow-y: auto;
-  max-height: 100vh;
-  min-height: 0;
-  padding-bottom: 2rem;
-}
-
-/* --- Drawing canvas area fix --- */
-.draw-canvas-root {
-  min-height: unset;
-  max-width: 1100px;
+.panel {
   width: 100%;
   margin: 0 auto;
-  padding: 1.2rem 0.5rem 1.5rem 0.5rem;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  background: transparent;
+}
+
+.panel.small { max-width: 560px; }
+
+.row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.row.between {
+  justify-content: space-between;
+}
+
+.grid-3 {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 24px;
+  align-items: stretch;
+}
+/* no multi-column layout to keep everything stacked and centered */
+
+/* Sections used on drawing page */
+.section { width: 100%; max-width: 960px; margin: 0 auto; }
+.section.wide { width: min(1400px, 95vw); max-width: none; }
+.section.narrow { max-width: 560px; }
+.section + .section { margin-top: 16px; }
+
+.row.center { justify-content: center; }
+
+/* Professional barebones layout for drawing */
+.draw-grid {
+  display: grid;
+  grid-template-columns: 260px 1fr 260px; /* symmetric side columns so canvas centers */
+  gap: 16px;
+  align-items: start;
+}
+
+.tools, .chat-col { display: flex; flex-direction: column; gap: 8px; }
+.canvas-col { display: flex; flex-direction: column; gap: 8px; }
+.canvas-col > .canvas { width: 100%; }
+
+@media (max-width: 1100px) {
+  .draw-grid { grid-template-columns: 200px 1fr 240px; }
+}
+
+@media (max-width: 900px) {
+  .draw-grid { grid-template-columns: 1fr; }
+}
+
+.label { font-size: 12px; color: var(--muted); }
+
+.input, .range, select {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 8px;
+  background: #fff;
+  color: var(--text);
   box-sizing: border-box;
-  overflow: visible;
 }
-.canvas-area-outer {
-  width: 100%;
-  max-width: 900px;
-  margin: 0 auto;
-  display: flex;
-  justify-content: center;
-  align-items: center;
+
+.btn {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #f9fafb;
+  color: var(--text);
+  padding: 8px 12px;
 }
-.drawing-canvas {
+.btn.primary { background: var(--primary); color: #fff; border-color: var(--primary); }
+.btn.secondary { background: #f3f4f6; }
+.btn.danger { background: var(--danger); color: #fff; border-color: var(--danger); }
+.btn:disabled { opacity: 0.5; }
+
+.list { border: 0; }
+.list-item { padding: 8px 0; border-bottom: 1px solid var(--line); }
+.list-item:last-child { border-bottom: 0; }
+
+.tag {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 12px;
+}
+.tag.ready { border-color: #10b981; color: #10b981; }
+
+.canvas {
   width: 100%;
-  max-width: 900px;
+  height: auto;
   aspect-ratio: 16/9;
-  min-height: 220px;
-  max-height: 60vh;
-  display: block;
-  margin: 0 auto;
-  border-radius: 18px;
-  /* border: 2.5px solid #bae6fd; */
-  box-shadow: 0 4px 24px #60a5fa22;
   background: #fff;
-  /* cursor: crosshair; */ /* Removed to allow custom tool cursors */
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  display: block;
   touch-action: none;
 }
 
-/* Responsive: allow scrolling on mobile */
-@media (max-width: 900px) {
-  .draw-canvas-root {
-    padding: 0.7rem 0.1rem 1rem 0.1rem;
-  }
-  .drawing-canvas {
-    min-height: 120px;
-    border-radius: 10px;
-    max-height: 40vh;
-  }
+.chat-messages { height: 320px; overflow: auto; padding: 8px; display: flex; flex-direction: column; gap: 6px; background: #fff; border: 1px solid var(--line); border-radius: 4px; }
+.chat-msg .chat-name { font-size: 12px; color: var(--muted); }
+.chat-msg .chat-bubble { display: inline-block; background: #f3f4f6; padding: 6px 8px; border-radius: 6px; max-width: 220px; }
+.chat-msg.me { align-items: flex-end; }
+.chat-msg.me .chat-bubble { background: #e0f2fe; }
+
+.muted { color: var(--muted); }
+
+.overlay {
+  position: fixed; inset: 0; background: rgba(255,255,255,0.6);
+  display: flex; align-items: center; justify-content: center;
 }
 
-/* --- DARK MODE --- */
-@media (prefers-color-scheme: dark) {
-  /* Container and navigation elements */
-  .container {
-    background: rgba(255, 255, 255, 0.95) !important;
-  }
-  
-  /* Menu and text elements - ensuring all text is dark for light background */
-  .menu h1, .menu p,
-  .host h1, .host p, .host h2,
-  .join h1, .join p,
-  .results h1, .results p,
-  .draw h1, .draw h2, .draw p,
-  .hint, .logo, .nickname, .lobby,
-  .player-name, .time-left,
-  .players-list, .player {
-    color: #1e293b !important;
-  }
+/* optional cursors retained (no heavy styling) */
+.cursor-brush { cursor: crosshair; }
+.cursor-bucket { cursor: pointer; }
 
-  /* Game controls and canvas */
-  .drawing-canvas-area,
-  .drawing-controls {
-    background: rgba(255, 255, 255, 0.95) !important;
-    color: #1e293b !important;
-    box-shadow: 0 4px 24px 0 #60a5fa22;
-    border: 1.5px solid #bae6fd;
-  }
+/* Drawing canvas page spacing */
+.dc-root { padding: 24px; }
 
-  /* Game lobby elements */
-  .game-lobby {
-    background: rgba(236,245,255,0.97) !important;
-    backdrop-filter: blur(18px) saturate(1.7) brightness(0.95);
-    border: 0px solid #6366f1;
-  }
+/* Consistent headings spacing */
+h1, h2 { margin: 0 0 8px; }
 
-  .game-lobby h2 {
-    color: #1e293b !important;
-  }
-
-  .room-code {
-    color: #3b82f6 !important;
-  }
-
-  /* Player status and ready indicator */
-  .ready {
-    color: #16a34a !important;
-  }
-
-  .players-list {
-    background: #f8fafc !important;
-  }
-
-  /* Input elements */
-  input::placeholder {
-    color: #64748b !important;
-  }
-
-  input {
-    background: #fff !important;
-    color: #1e293b !important;
-    border-color: #bae6fd !important;
-  }
-
-  /* Maintain white text on buttons */
-  button:not(.clear-canvas-btn) {
-    color: #fff !important;
-  }
-
-  /* Drawing control specific elements */
-  .brush-size-control {
-    color: #1e293b !important;
-  }
-}
-
-/* --- ENHANCED GLASSMORPHISM --- */
-.container {
-  backdrop-filter: blur(14px) saturate(1.5) brightness(1.08);
-  border-radius: 36px;
-  border: 2px solid #bae6fd;
-}
-@media (prefers-color-scheme: dark) {
-  .container {
-    backdrop-filter: blur(18px) saturate(1.7) brightness(0.95);
-    border: 0px solid #6366f1;
-  }
-}
-
-/* --- COLORFUL GAME-LIKE PROMPT CATEGORY --- */
-.prompt-category {
-  background: linear-gradient(90deg, #f472b6 0%, #60a5fa 100%);
-  color: #fff !important;
-  border-radius: 8px;
-  padding: 0.2rem 1rem;
-  box-shadow: 0 2px 8px #60a5fa33;
-  font-weight: 800;
-  letter-spacing: 0.02em;
-  text-shadow: 0 2px 8px #6366f1aa;
-}
-@media (prefers-color-scheme: dark) {
-  .prompt-category {
-    background: linear-gradient(90deg, #f472b6 0%, #6366f1 100%);
-    color: #fff !important;
-    box-shadow: 0 2px 12px #6366f1cc;
-  }
-}
-
-/* --- POLISH: LAYOUT, CONTRAST, VISUALS --- */
-.menu, .host, .join, .draw, .results {
-  gap: 1.3rem;
-}
-.drawing-canvas-area {
-  margin-top: 0.5rem;
-  margin-bottom: 1.2rem;
-}
-.drawing-controls {
-  background: rgba(236,245,255,0.7);
-  border-radius: 12px;
-  padding: 0.7rem 1vw;
-  box-shadow: 0 2px 8px #60a5fa22;
-}
-@media (prefers-color-scheme: dark) {
-  .drawing-controls {
-    background: rgba(36,41,70,0.85);
-    box-shadow: 0 2px 8px #6366f122;
-  }
-}
-
-/* Game Lobby styling improvements */
-.game-lobby {
-  width: 100%;
-  max-width: 1100px;
-  margin: 0 auto;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  background: rgba(236,245,255,0.97);
-  border-radius: 28px;
-  box-shadow: 0 4px 32px #60a5fa22;
-  padding: 2.2rem 1.5rem 2.5rem 1.5rem;
-  position: relative;
-  min-height: 70vh;
-}
-
-.game-lobby h2 {
-  font-size: 2rem;
-  font-weight: 700;
-  color: #1e293b;
-  margin-bottom: 1.5rem;
-}
-
-.room-code {
-  font-size: 1.2rem;
-  font-weight: 600;
-  color: #3b82f6;
-  margin: 1rem 0;
-}
-
-/* Dark mode for game lobby */
-@media (prefers-color-scheme: dark) {
-  .game-lobby {
-    background: rgba(236,245,255,0.97) !important;
-    backdrop-filter: blur(18px) saturate(1.7) brightness(0.95);
-    border: 1.5px solid #bae6fd !important;
-    box-shadow: 0 4px 24px 0 #60a5fa22 !important;
-  }
-
-  .game-lobby h2 {
-    color: #1e293b !important;
-  }
-
-  .room-code {
-    color: #3b82f6 !important;
-  }
-}
-
-.draw-canvas-root {
-  width: 100%;
-  max-width: 1100px;
-  margin: 0 auto;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  background: rgba(236,245,255,0.97);
-  border-radius: 28px;
-  box-shadow: 0 4px 32px #60a5fa22;
-  padding: 2.2rem 1.5rem 2.5rem 1.5rem;
-  position: relative;
-  min-height: 70vh;
-}
-
-.draw-header {
-  width: 100%;
-  text-align: center;
-  margin-bottom: 1.2rem;
-}
-.draw-header h2 {
-  font-size: 1.7rem;
-  font-weight: 800;
-  color: #1e293b;
-  margin: 0.2rem 0 0.7rem 0;
-}
-.draw-prompt {
-  font-size: 2.2rem;
-  color: #334155;
-  margin-bottom: 0.4rem;
-}
-.draw-timer {
-  font-size: 1.1rem;
-  color: #2563eb;
-  font-weight: 700;
-  margin-bottom: 0.7rem;
-}
-
-.draw-controls-area {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1.2rem;
-}
-
-.draw-controls {
-  display: flex;
-  align-items: flex-end;
-  gap: 2.5rem;
-  width: 100%;
-  max-width: 900px;
-  margin: 0 auto 0.7rem auto;
-  justify-content: center;
-  flex-wrap: wrap;
-}
-
-.color-picker-outer {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.7rem;
-}
-.color-picker-outer .react-colorful {
-  width: 120px;
-  height: 120px;
-  border-radius: 16px;
-  box-shadow: 0 2px 8px #60a5fa22;
-  border: 2px solid #bae6fd;
-  background: #fff;
-}
-.color-preview {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  border: 2px solid #bae6fd;
-  box-shadow: 0 1px 4px #60a5fa33;
-  margin-top: 0.2rem;
-}
-
-.brush-size-slider-area {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.3rem;
-  min-width: 120px;
-  width: 140px;
-}
-.brush-preview-row {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-top: 0.2rem;
-  min-height: 32px;
-}
-.brush-preview-circle {
-  border-radius: 50%;
-  border: 2px solid #e0e7ef;
-  box-shadow: 0 1px 4px #60a5fa33;
-  background: #2563eb;
-  transition: width 0.1s, height 0.1s;
-}
-.brush-size-label {
-  font-size: 13px;
-  color: #64748b;
-  min-width: 32px;
-  text-align: left;
-}
-
-.submit-drawing-btn {
-  margin-top: 1.2rem;
-  font-size: 1.15rem;
-  font-weight: 700;
-  padding: 0.8rem 2.5rem;
-  border-radius: 10px;
-  background: linear-gradient(90deg, #38bdf8 0%, #6366f1 100%);
-  color: #fff;
-  box-shadow: 0 2px 8px #60a5fa33;
-  cursor: pointer;
-  border: none;
-  transition: background 0.2s, box-shadow 0.2s, transform 0.1s;
-}
-.submit-drawing-btn:disabled {
-  background: #cbd5e1;
-  color: #fff;
-  cursor: not-allowed;
-}
-
-/* ================================
-   1 · Viewport math
-   ================================ */
-
-/* Give the browser a TRUE viewport unit that ignores the URL bar  */
-:root{
-  /* rn Safari/mobile fix (fires once on load)                    */
-  --vh: 1dvh;
-  --safe-area-inset-top: env(safe-area-inset-top, 0px);
-}
-
-/* y & root never scroll; the white card owns the full screen  */
-html,body,#root{
-  height:100%;                 /* ixels, not content height     */
-  overflow:hidden;             /* e outer scroll bar            */
-}
-
-/* Results page specific override - enable scrolling */
-body:has(.results-container),
-html:has(.results-container),
-#root:has(.results-container) {
-  overflow-y: auto !important;
-  height: auto !important;
-  min-height: 100% !important;
-}
-
-/* te "glass" card = 3-row grid   header | main | footer      */
-.container{
-  height:100%;
-  display:grid;
-  grid-template-rows:auto 1fr auto;
-  padding:clamp(.8rem,2vh,1.5rem) 2vw;
-  overflow:hidden;             /* he inner scroll bar as well   */
-}
-
-/* Results page outer wrapper - remove vertical centering */
-.min-h-screen:has(.results-container) {
-  justify-content: flex-start !important;
-  /* padding-top: 0.5rem !important;
-  padding-bottom: 2rem !important; */
-  overflow-y: auto !important;
-  overflow-x: hidden !important;
-  min-height: 100vh !important;
-  padding-left: 1rem !important;
-  padding-right: 1rem !important;
-}
-
-/* Results page outer container - enable scrolling and remove center alignment */
-.results-container {
-  overflow: visible !important;
-  max-height: none !important;
-  height: auto !important;
-  min-height: auto !important;
-  max-width: 95% !important;
-  width: 95% !important;
-  /* margin: 0 auto 2rem auto !important; */
-  padding: 2rem 2rem 3rem 2rem !important;
-  box-sizing: border-box !important;
-}
-
-/* ------------------------------------------------------------
-   MAIN DRAWING LAYOUT
-   -----------------------------------------------------------------*/
-.draw-canvas-root{
-  /* mn grid – tools snap to the left, canvas to the right      */
-  display:grid;
-  grid-template-columns:minmax(150px,22vw) 1fr;
-  column-gap:2rem;
-  align-items:start;
-
-  /*   grow inside the "main" grid row                  */
-  min-height:0;
-  overflow:auto;               /* his inner area may scroll     */
-}
-
-/* anvas size calc ------------------------------------------  */
-.drawing-canvas{
-  /*  inside 16 : 9          ② BUT cap height dynamically       */
-  max-height:calc(var(--vh)*58);    /* of the visible viewport */
-  width:100%;
-}
-
-/* sh laptop screens (≤ 800 px tall) → shave a bit more height  */
-@media (max-height:800px){
-  .drawing-canvas{ max-height:calc(var(--vh)*52); }
-}
-
-/* ---------------------------------------------------------   */
-/* : always visible, never pushes the page.                    */
-footer{
-  padding-block:.5rem;    /* r = more vertical real estate     */
-}
-
-/* ---------------------------------------------------------   */
-/* it phones & narrow tablets                                  */
-@media (max-width:768px){
-  .draw-canvas-root{
-    grid-template-columns:1fr;   /* canvas > tools             */
-    row-gap:1.4rem;
-  }
-  .draw-controls{ order:2; }      /* under the canvas           */
-}
-
-/* ================================
-   2 · Optional polish (pure cosmetics)
-   ================================ */
-
-/* Slimmer header: reduce top padding on header h1 */
-header h1 {
-  padding-top: 0.4rem !important;
-}
-
-/* Hide footer on mobile for more drawing space */
-@media (max-height:650px){
-  footer{ display:none; }
-}
-
-/* Results page responsive grid - Instagram feed style */
-.results-grid {
-  display: flex !important;
-  flex-direction: column !important;
-  gap: 2.5rem !important;
-  padding: 1rem 1rem 2rem 1rem !important;
-  width: 100% !important;
-  max-width: 700px !important;
-  margin: 0 auto !important;
-  align-items: center !important;
-  box-sizing: border-box !important;
-}
-
-/* Individual drawing cards in results - Instagram feed style */
-.results-grid .drawing-card {
-  width: 100% !important;
-  max-width: 550px !important;
-  margin: 0 auto !important;
-  background: rgba(255,255,255,0.95) !important;
-  border-radius: 1.4rem !important;
-  box-shadow: 0 8px 32px #60a5fa22 !important;
-  padding: 32px 20px 24px 20px !important;
-  border: 1.5px solid #e0e7ef !important;
-  backdrop-filter: blur(8px) !important;
-  transition: transform 0.2s ease, box-shadow 0.2s ease !important;
-  box-sizing: border-box !important;
-}
-
-.results-grid .drawing-card:hover {
-  transform: translateY(-2px) !important;
-  box-shadow: 0 8px 32px #60a5fa33 !important;
-}
-
-/* Mobile responsiveness for results feed */
-@media (max-width: 600px) {
-  .results-container {
-    padding: 1rem 1rem 2rem 1rem !important;
-    width: 98% !important;
-    max-width: 98% !important;
-  }
-  
-  .results-grid {
-    gap: 2rem !important;
-    padding: 0.5rem 0.5rem 1.5rem 0.5rem !important;
-    max-width: 100% !important;
-  }
-  
-  .results-grid .drawing-card {
-    max-width: 100% !important;
-    margin: 0 !important;
-    padding: 24px 16px 20px 16px !important;
-    border-radius: 1rem !important;
-  }
-  
-  .min-h-screen:has(.results-container) {
-    padding: 0.3rem 0.5rem 1rem 0.5rem !important;
-  }
-}
-
-/* Custom cursor styles for drawing tools */
-.cursor-brush {
-  cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><text y="24" font-size="20">🖌️</text></svg>') 6 26, crosshair !important;
-}
-
-.cursor-bucket {
-  cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><text y="24" font-size="20">🪣</text></svg>') 16 16, pointer !important;
-}
-
-/* Responsive Drawing Layout */
-.draw-main-grid {
-  display: grid;
-  grid-template-columns: minmax(180px, 200px) minmax(320px, 1fr) minmax(240px, 260px);
-  gap: 16px;
-  align-items: start;
-  width: 100%;
-  min-height: 500px;
-}
-
-/* Stack vertically on tablets and smaller */
-@media (max-width: 1024px) {
-  .draw-main-grid {
-    grid-template-columns: 1fr;
-    grid-template-rows: auto auto auto;
-    gap: 20px;
-    align-items: center;
-  }
-  
-  .draw-controls {
-    order: 2;
-    max-width: 500px;
-    width: 100%;
-  }
-  
-  .canvas-area-outer {
-    order: 1;
-    width: 100%;
-  }
-  
-  .draw-chat-panel {
-    order: 3;
-    max-width: 500px;
-    width: 100%;
-  }
-}
-
-/* Mobile optimizations */
-@media (max-width: 768px) {
-  .draw-main-grid {
-    gap: 16px;
-    padding: 0 8px;
-  }
-  
-  .draw-canvas-root {
-    padding: 20px 16px 24px 16px;
-  }
-  
-  .draw-controls {
-    flex-direction: row;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 12px;
-  }
-  
-  .color-picker-outer,
-  .brush-size-slider-area {
-    flex: 1;
-    min-width: 140px;
-  }
-}
-
-/* Extra small screens */
-@media (max-width: 480px) {
-  .draw-main-grid {
-    gap: 12px;
-    padding: 0 4px;
-  }
-  
-  .draw-canvas-root {
-    padding: 16px 12px 20px 12px;
-    border-radius: 1.5rem;
-  }
-  
-  .draw-controls {
-    flex-direction: column;
-    gap: 8px;
-  }
-  
-  .color-picker-outer,
-  .brush-size-slider-area {
-    width: 100%;
-    min-width: auto;
-  }
-  
-  .draw-chat-panel {
-    min-height: 200px;
-  }
-  
-  .drawing-canvas {
-    min-height: 250px;
-  }
-}
-
-/* Shiny text animation */
-@keyframes shine {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
-}
-
-.shiny-text {
-  display: inline-block;
-  background: linear-gradient(120deg, 
-    currentColor 40%, 
-    rgba(255, 255, 255, 0.8) 50%, 
-    currentColor 60%);
-  background-size: 200% 100%;
-  background-clip: text;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  animation: shine var(--animation-duration, 4s) linear infinite;
-}
+/* Results grid: simple row with wrap, no cards */
+.results-grid { display: flex; flex-wrap: wrap; gap: 16px; justify-content: center; width: 100%; max-width: 1200px; margin: 0 auto; }
