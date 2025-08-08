@@ -2,6 +2,11 @@
 
 A small multiplayer drawing game where friends join a room, get a prompt, and try to draw it before the timer runs out. React on the front; Node.js + Socket.IO on the back.
 
+## Live
+
+- Frontend (Vercel): [timed-doodle-challenge.vercel.app](https://timed-doodle-challenge.vercel.app)
+- Backend (Render): [timed-doodle-challenge.onrender.com](https://timed-doodle-challenge.onrender.com)
+
 ## Features
 
 - Rooms with 5‑character codes, host or join
