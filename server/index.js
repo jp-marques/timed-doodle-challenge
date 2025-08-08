@@ -29,6 +29,36 @@ const { getRandomPrompt } = require('./prompts');
 const { validateNickname, validateRoomCode, validateRoundDuration } = require('./validation');
 const rooms = {};
 
+// Helper: end a round and broadcast results
+function endRound(code) {
+  const room = rooms[code];
+  if (!room) return;
+  if (room.roundTimeout) {
+    clearTimeout(room.roundTimeout);
+    room.roundTimeout = null;
+  }
+  // Emit results once
+  io.to(code).emit('round-end', { drawings: room.drawings });
+  // Cleanup round-specific fields
+  room.endsAt = null;
+  room.participants = null;
+}
+
+// Helper: check if all required participants have submitted
+function maybeEndRoundEarly(code) {
+  const room = rooms[code];
+  if (!room) return;
+  const requiredIds = room.participants || (room.players ? room.players.map(p => p.id) : []);
+  if (requiredIds.length === 0) return;
+  let submittedCount = 0;
+  for (const participantId of requiredIds) {
+    if (room.drawings && room.drawings[participantId]) submittedCount++;
+  }
+  if (submittedCount >= requiredIds.length) {
+    endRound(code);
+  }
+}
+
 // Validation helpers imported from ./validation
 
 io.on('connection', (socket) => {
@@ -165,16 +195,25 @@ io.on('connection', (socket) => {
       const trimmedCode = code.trim().toUpperCase();
 
       if (rooms[trimmedCode] && socket.id === rooms[trimmedCode].host) {
+        const room = rooms[trimmedCode];
         const { prompt, category } = getRandomPrompt();
-        rooms[trimmedCode].prompt = prompt;
-        rooms[trimmedCode].category = category;
-        rooms[trimmedCode].drawings = {};
-        // Reset ready status for next round
-        rooms[trimmedCode].players.forEach(p => {
-          if (p.id !== rooms[trimmedCode].host) p.isReady = false;
+        room.prompt = prompt;
+        room.category = category;
+        room.drawings = {};
+        // Snapshot participants at round start
+        room.participants = room.players.map(p => p.id);
+        // Reset ready status for next round (non-host only)
+        room.players.forEach(p => {
+          if (p.id !== room.host) p.isReady = false;
         });
-        io.to(trimmedCode).emit('round-start', { prompt, duration, category });
-        console.log(`Round started in room ${trimmedCode} with duration ${duration}s`);
+        // Server-enforced deadline
+        const endsAt = Date.now() + duration * 1000;
+        room.endsAt = endsAt;
+        if (room.roundTimeout) clearTimeout(room.roundTimeout);
+        room.roundTimeout = setTimeout(() => endRound(trimmedCode), duration * 1000);
+
+        io.to(trimmedCode).emit('round-start', { prompt, duration, category, endsAt });
+        console.log(`Round started in room ${trimmedCode} with duration ${duration}s (endsAt=${endsAt})`);
       } else {
         console.error('Unauthorized start-round attempt or room not found');
       }
@@ -184,12 +223,15 @@ io.on('connection', (socket) => {
   });
 
   socket.on('submit-drawing', ({ code, drawing }) => {
-    if (rooms[code]) {
-      rooms[code].drawings[socket.id] = drawing;
-      if (Object.keys(rooms[code].drawings).length === rooms[code].players.length) {
-        io.to(code).emit('round-end', { drawings: rooms[code].drawings });
-      }
-    }
+    const room = rooms[code];
+    if (!room) return;
+    const now = Date.now();
+    // Ignore late submissions
+    if (room.endsAt && now > room.endsAt) return;
+    // Only accept from players in the room
+    if (!room.players.find(p => p.id === socket.id)) return;
+    room.drawings[socket.id] = drawing;
+    maybeEndRoundEarly(code);
   });
 
   socket.on('chat-message', ({ code, text, nickname, id, time }) => {
@@ -229,14 +271,21 @@ io.on('connection', (socket) => {
   socket.on('disconnecting', () => {
     for (const code of socket.rooms) {
       if (rooms[code]) {
-        rooms[code].players = rooms[code].players.filter(p => p.id !== socket.id);
+        const room = rooms[code];
+        room.players = room.players.filter(p => p.id !== socket.id);
+        // If disconnect happens during a round, remove from required participants
+        if (room.participants && Array.isArray(room.participants)) {
+          room.participants = room.participants.filter(id => id !== socket.id);
+          // If everyone remaining has already submitted, end early
+          maybeEndRoundEarly(code);
+        }
         // If host left, delete the room
-        if (socket.id === rooms[code].host) {
+        if (socket.id === room.host) {
           io.to(code).emit('host-left');
           delete rooms[code];
-        } else if (rooms[code].players.length > 0) {
+        } else if (room.players.length > 0) {
           // Update lobby for remaining players
-          io.to(code).emit('lobby-update', rooms[code].players);
+          io.to(code).emit('lobby-update', room.players);
         } else {
           delete rooms[code];
         }
