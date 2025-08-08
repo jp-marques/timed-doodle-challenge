@@ -74,6 +74,26 @@ const validateRoomCode = (code) => {
   return null; // Valid
 };
 
+const validateRoundDuration = (duration) => {
+  if (!duration || typeof duration !== 'number') {
+    return 'Invalid duration';
+  }
+  
+  if (!Number.isInteger(duration)) {
+    return 'Duration must be a whole number';
+  }
+  
+  if (duration < 15) {
+    return 'Duration must be at least 15 seconds';
+  }
+  
+  if (duration > 300) {
+    return 'Duration cannot exceed 5 minutes (300 seconds)';
+  }
+  
+  return null; // Valid
+};
+
 io.on('connection', (socket) => {
   console.log('Client connected:', socket.id);
 
@@ -109,6 +129,7 @@ io.on('connection', (socket) => {
         }],
         drawings: {},
         prompt: null,
+        roundDuration: 60, // Default round duration
         createdAt: Date.now()
       };
 
@@ -188,17 +209,40 @@ io.on('connection', (socket) => {
       }
     }
   });
-  socket.on('start-round', (code) => {
-    if (rooms[code] && socket.id === rooms[code].host) {
-      const { prompt, category } = getRandomPrompt();
-      rooms[code].prompt = prompt;
-      rooms[code].category = category;
-      rooms[code].drawings = {};
-      // Reset ready status for next round
-      rooms[code].players.forEach(p => {
-        if (p.id !== rooms[code].host) p.isReady = false;
-      });
-      io.to(code).emit('round-start', { prompt, duration: 60 });
+  socket.on('start-round', ({ code, duration }) => {
+    try {
+      // Validate room code
+      const codeValidationError = validateRoomCode(code);
+      if (codeValidationError) {
+        console.error('Invalid room code in start-round:', codeValidationError);
+        return;
+      }
+
+      // Validate duration
+      const durationValidationError = validateRoundDuration(duration);
+      if (durationValidationError) {
+        console.error('Invalid duration in start-round:', durationValidationError);
+        return;
+      }
+
+      const trimmedCode = code.trim().toUpperCase();
+
+      if (rooms[trimmedCode] && socket.id === rooms[trimmedCode].host) {
+        const { prompt, category } = getRandomPrompt();
+        rooms[trimmedCode].prompt = prompt;
+        rooms[trimmedCode].category = category;
+        rooms[trimmedCode].drawings = {};
+        // Reset ready status for next round
+        rooms[trimmedCode].players.forEach(p => {
+          if (p.id !== rooms[trimmedCode].host) p.isReady = false;
+        });
+        io.to(trimmedCode).emit('round-start', { prompt, duration, category });
+        console.log(`Round started in room ${trimmedCode} with duration ${duration}s`);
+      } else {
+        console.error('Unauthorized start-round attempt or room not found');
+      }
+    } catch (error) {
+      console.error('Error in start-round:', error);
     }
   });
 
