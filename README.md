@@ -9,6 +9,25 @@ A small multiplayer drawing game where friends join a room, get a prompt, and tr
 
 > Note: The backend runs on Render’s free tier. **Please be patient :)** - cold starts can take around 60 seconds. If it seems slow or times out at first, wait a moment and try again while the server spins up.
 
+## Tech stack
+
+- **Frontend**
+  - React + TypeScript (Vite)
+  - Socket.IO Client
+
+- **Backend**
+  - Node.js, Express
+  - Socket.IO (real-time)
+  - CORS
+
+- **Architecture**
+  - Real-time communication via Socket.IO
+  - In-memory room store (single instance)
+
+- **Hosting**
+  - Frontend: Vercel
+  - Backend: Render
+
 ## Features
 
 - Rooms with 5‑character codes, host or join
@@ -80,6 +99,6 @@ Timer model
 - State: Rooms live in memory for low setup and fast iteration. To scale beyond one server, I’d move room state to Redis and use the Socket.IO adapter with sticky sessions.
 - Drawings: Sent as base64 strings for simplicity. For storage and larger images, I’d switch to binary uploads and object storage (e.g., S3) with signed URLs.
 - Frontend: React + Vite + TypeScript for fast feedback and type safety.
-- Styling: Tailwind for quick, consistent UI without heavy CSS tooling.
+- Styling: Simple hand-written CSS for a lightweight bundle.
 - Room codes: 5 characters to be easy to share; collisions are retried.
 - Validation: Guardrails on names, timers (15–300s), and chat length to prevent abuse and keep the UI stable.
