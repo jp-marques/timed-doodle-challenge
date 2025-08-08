@@ -29,6 +29,7 @@ function App() {
   const [isHost, setIsHost] = useState(false);
   const [category, setCategory] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [isConnected, setIsConnected] = useState(false);
 
   /* --------------- Canvas / drawing state ------------- */
   const canvasRef = useRef<HTMLCanvasElement>(null) as React.RefObject<HTMLCanvasElement>;
@@ -41,6 +42,22 @@ function App() {
 
   /* --------------- Socket ----------------------------- */
   const socketRef = useSocket();
+
+  // Track socket connection status for UI badge
+  useEffect(() => {
+    const socket = socketRef.current;
+    if (!socket) return;
+    // Initialize current state
+    setIsConnected(socket.connected);
+    const onConnect = () => setIsConnected(true);
+    const onDisconnect = () => setIsConnected(false);
+    socket.on('connect', onConnect);
+    socket.on('disconnect', onDisconnect);
+    return () => {
+      socket.off('connect', onConnect);
+      socket.off('disconnect', onDisconnect);
+    };
+  }, []);
 
   /* --------------- Chat state ------------------------- */
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
@@ -328,7 +345,19 @@ function App() {
   return (
     <div className="page">
       {view === 'menu' && (
-        <MenuView nickname={nickname} nicknameError={nicknameError} onNicknameChange={handleNicknameChange} onContinue={handleStartPlaying} />
+        <>
+          <div className="row center" style={{ justifyContent: 'center' }}>
+            <div className={isConnected ? 'tag online' : 'tag offline'}>
+              {isConnected ? 'Connected' : 'Offline'}
+            </div>
+          </div>
+          <MenuView
+            nickname={nickname}
+            nicknameError={nicknameError}
+            onNicknameChange={handleNicknameChange}
+            onContinue={handleStartPlaying}
+          />
+        </>
       )}
 
       {view === 'host' && (
