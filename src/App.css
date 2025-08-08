@@ -122,6 +122,8 @@ body {
   font-size: 12px;
 }
 .tag.ready { border-color: #10b981; color: #10b981; }
+.tag.online { border-color: #10b981; color: #10b981; }
+.tag.offline { border-color: #ef4444; color: #ef4444; }
 
 .canvas {
   width: 100%;
