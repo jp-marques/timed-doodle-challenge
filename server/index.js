@@ -29,6 +29,7 @@ app.use(express.json());
 
 const { getRandomPrompt } = require('./prompts');
 const { validateNickname, validateRoomCode, validateRoundDuration } = require('./validation');
+const { v4: uuidv4 } = require('uuid');
 const rooms = {};
 
 // Helper: end a round and broadcast results
@@ -89,6 +90,7 @@ io.on('connection', (socket) => {
       }
 
       // Create the room
+      const sessionId = uuidv4();
       rooms[code] = {
         host: socket.id,
         players: [{
@@ -108,7 +110,7 @@ io.on('connection', (socket) => {
       console.log('Created room:', code, 'with host:', trimmedNickname);
       
       if (typeof callback === 'function') {
-        callback({ code });
+        callback({ code, sessionId });
       }
       
       // Send initial lobby state
@@ -147,16 +149,18 @@ io.on('connection', (socket) => {
           throw new Error('Nickname is already taken in this room');
         }
 
+        const sessionId = uuidv4();
         const player = {
           id: socket.id,
           nickname: trimmedNickname,
-          isReady: false
+          isReady: false,
+          sessionId
         };
         rooms[trimmedCode].players.push(player);
         socket.join(trimmedCode);
         io.to(trimmedCode).emit('lobby-update', rooms[trimmedCode].players);
         if (typeof callback === 'function') {
-          callback({ success: true });
+          callback({ success: true, sessionId });
         }
       } else {
         throw new Error('Room not found');
@@ -165,6 +169,44 @@ io.on('connection', (socket) => {
       console.error('Error in join-room:', error);
       if (typeof callback === 'function') {
         callback({ success: false, error: error.message || 'Failed to join room' });
+      }
+    }
+  });
+
+  socket.on('resume-session', ({ sessionId }, callback) => {
+    try {
+      let playerRestored = false;
+      for (const code in rooms) {
+        const room = rooms[code];
+        const player = room.players.find(p => p.sessionId === sessionId);
+        if (player) {
+          // Clear any existing disconnect timeout
+          if (player.disconnectTimeout) {
+            clearTimeout(player.disconnectTimeout);
+            delete player.disconnectTimeout;
+          }
+          
+          player.id = socket.id; // Update socket ID
+          player.disconnected = false; // Mark as reconnected
+          socket.join(code);
+          
+          console.log(`Session resumed: ${player.nickname} in room ${code}`);
+          io.to(code).emit('lobby-update', room.players);
+          
+          if (typeof callback === 'function') {
+            callback({ success: true, roomCode: code, nickname: player.nickname });
+          }
+          playerRestored = true;
+          break;
+        }
+      }
+      if (!playerRestored && typeof callback === 'function') {
+        callback({ success: false, error: 'Session not found or expired' });
+      }
+    } catch (error) {
+      console.error('Error in resume-session:', error);
+      if (typeof callback === 'function') {
+        callback({ success: false, error: 'Failed to resume session' });
       }
     }
   });
@@ -224,38 +266,39 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('submit-drawing', ({ code, drawing }) => {
+  socket.on('submit-drawing', ({ code, drawing }, callback) => {
     const room = rooms[code];
-    if (!room) return;
+    if (!room) return typeof callback === 'function' ? callback({ error: 'room_not_found' }) : undefined;
     const now = Date.now();
     // Ignore late submissions
-    if (room.endsAt && now > room.endsAt) return;
+    if (room.endsAt && now > room.endsAt) return typeof callback === 'function' ? callback({ error: 'late_submission' }) : undefined;
     // Only accept from players in the room
-    if (!room.players.find(p => p.id === socket.id)) return;
+    if (!room.players.find(p => p.id === socket.id)) return typeof callback === 'function' ? callback({ error: 'not_in_room' }) : undefined;
     room.drawings[socket.id] = drawing;
     maybeEndRoundEarly(code);
+    if (typeof callback === 'function') callback({ ok: true });
   });
 
-  socket.on('chat-message', ({ code, text, nickname, id, time }) => {
+  socket.on('chat-message', ({ code, text, nickname, id, time }, callback) => {
     try {
       if (!rooms[code]) {
-        return; // Room doesn't exist
+        return typeof callback === 'function' ? callback({ error: 'room_not_found' }) : undefined; // Room doesn't exist
       }
 
       // Validate message text
       if (!text || typeof text !== 'string') {
-        return; // Invalid message
+        return typeof callback === 'function' ? callback({ error: 'invalid_message' }) : undefined; // Invalid message
       }
 
       const trimmedText = text.trim();
       if (!trimmedText || trimmedText.length > 120) {
-        return; // Empty or too long message
+        return typeof callback === 'function' ? callback({ error: 'invalid_message' }) : undefined; // Empty or too long message
       }
 
       // Check if sender is actually in the room
       const player = rooms[code].players.find(p => p.id === socket.id);
       if (!player) {
-        return; // Player not in room
+        return typeof callback === 'function' ? callback({ error: 'not_in_room' }) : undefined; // Player not in room
       }
 
       // Broadcast the chat message to all players in the room
@@ -265,8 +308,11 @@ io.on('connection', (socket) => {
         id: socket.id, 
         time: Date.now() // Use server time
       });
+
+      if (typeof callback === 'function') callback({ ok: true });
     } catch (error) {
       console.error('Error in chat-message:', error);
+      if (typeof callback === 'function') callback({ error: 'server_error' });
     }
   });
 
@@ -309,22 +355,28 @@ io.on('connection', (socket) => {
     for (const code of socket.rooms) {
       if (rooms[code]) {
         const room = rooms[code];
-        room.players = room.players.filter(p => p.id !== socket.id);
-        // If disconnect happens during a round, remove from required participants
-        if (room.participants && Array.isArray(room.participants)) {
-          room.participants = room.participants.filter(id => id !== socket.id);
-          // If everyone remaining has already submitted, end early
-          maybeEndRoundEarly(code);
-        }
-        // If host left, delete the room
-        if (socket.id === room.host) {
-          io.to(code).emit('host-left');
-          delete rooms[code];
-        } else if (room.players.length > 0) {
-          // Update lobby for remaining players
-          io.to(code).emit('lobby-update', room.players);
-        } else {
-          delete rooms[code];
+        const player = room.players.find(p => p.id === socket.id);
+        if (player) {
+          player.disconnected = true;
+          console.log(`Player ${player.nickname} disconnected from room ${code}, starting 30s grace period`);
+          
+          // Set a timeout to remove the player if they don't reconnect
+          player.disconnectTimeout = setTimeout(() => {
+            if (player.disconnected) {
+              console.log(`Removing ${player.nickname} from room ${code} after grace period`);
+              room.players = room.players.filter(p => p.sessionId !== player.sessionId);
+              
+              // Handle host leaving or empty room cleanup
+              if (player.id === room.host) {
+                io.to(code).emit('host-left');
+                delete rooms[code];
+              } else if (room.players.length > 0) {
+                io.to(code).emit('lobby-update', room.players);
+              } else {
+                delete rooms[code];
+              }
+            }
+          }, 30000); // 30-second grace period
         }
       }
     }

@@ -7,14 +7,19 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "lint": "eslint .",
-    "preview": "vite preview"
+    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "preview": "vite preview",
+    "test:performance": "cd load-testing && node run-all-tests.js",
+    "test:load": "cd load-testing && npm install && node socket-load-test.js",
+    "test:reliability": "cd load-testing && npm install && node reliability-test.js",
+    "test:bundle": "cd load-testing && npm install && node bundle-analyzer.js"
   },
   "dependencies": {
     "react": "^19.1.0",
     "react-colorful": "^5.6.1",
     "react-dom": "^19.1.0",
-    "socket.io-client": "^4.8.1"
+    "socket.io-client": "^4.8.1",
+    "localforage": "^1.10.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.25.0",

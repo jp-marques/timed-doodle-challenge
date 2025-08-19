@@ -1,0 +1,32 @@
+{
+  "name": "timeddoodle-load-testing",
+  "version": "1.0.0",
+  "description": "Load testing and performance validation tools for TimedDoodle",
+  "main": "index.js",
+  "scripts": {
+    "load-test": "node socket-load-test.js",
+    "reliability-test": "node reliability-test.js",
+    "latency-test": "node latency-test.js",
+    "k6-test": "k6 run k6-load-test.js",
+    "test-all": "npm run load-test && npm run reliability-test",
+    "quick-test": "node -e \"process.env.CONCURRENT_USERS='20';process.env.TEST_DURATION='30000';require('./socket-load-test.js')\"",
+    "quick-latency": "node -e \"process.env.TEST_DURATION='10000';require('./latency-test.js')\"",
+    "demo": "node demo.js",
+    "test:performance": "node run-all-tests.js"
+  },
+  "dependencies": {
+    "cross-env": "^7.0.3",
+    "execa": "^9.0.0",
+    "socket.io-client": "^4.8.1",
+    "zlib": "^1.0.5"
+  },
+  "devDependencies": {},
+  "keywords": [
+    "load-testing",
+    "performance",
+    "websockets",
+    "socket.io"
+  ],
+  "author": "TimedDoodle Team",
+  "license": "MIT"
+}
