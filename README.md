@@ -2,6 +2,29 @@
 
 A small multiplayer drawing game where friends join a room, get a prompt, and try to draw it before the timer runs out. React on the front; Node.js + Socket.IO on the back.
 
+## Run locally
+
+Prerequisites: Node.js 18+ and npm
+
+Backend (server):
+- `cd server`
+- `npm install`
+- `npm start`
+
+Frontend (client):
+- Open a new terminal at the project root
+- `npm install`
+- `npm run dev`
+- Open the URL shown (usually `http://localhost:5173`)
+
+Notes:
+- Dev client targets `http://localhost:3001` (see `src/config.ts`).
+- CORS allows `5173` and `5174` locally; Vite may pick 5174 if 5173 is busy.
+
+Troubleshooting:
+- Port 3001 in use (Windows): `netstat -ano | findstr :3001` then `taskkill /PID <PID> /F`
+- Run server directly if needed: `node index.js` from the `server/` directory
+
 ## Live
 
 - Frontend (Vercel): [timed-doodle-challenge.vercel.app](https://timed-doodle-challenge.vercel.app) 
