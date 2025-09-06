@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import './App.css';
 import DrawingCanvas from './components/DrawingCanvas';
 import { MenuView } from './features/menu/MenuView';
-import { HostView } from './features/host/HostView';
 import { JoinView } from './features/join/JoinView';
 import { LobbyView } from './features/lobby/LobbyView';
 import { ResultsView } from './features/results/ResultsView';
@@ -15,9 +14,7 @@ import { useSocket } from './lib/useSocket';
 /* ─────────────────────────────────────────────────── */
 function App() {
   /* --------------- Global / lobby state --------------- */
-  const [view, setView] = useState<
-    'menu' | 'nickname' | 'host' | 'join' | 'lobby' | 'draw' | 'results'
-  >('menu');
+  const [view, setView] = useState<'menu' | 'join' | 'lobby' | 'draw' | 'results'>('menu');
   const [roomCode, setRoomCode] = useState('');
   const [inputCode, setInputCode] = useState('');
   const [nickname, setNickname] = useState('');
@@ -62,6 +59,22 @@ function App() {
   /* --------------- Chat state ------------------------- */
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [chatInput, setChatInput] = useState('');
+
+  // Reflect socket connection status in UI
+  useEffect(() => {
+    const socket = socketRef.current;
+    if (!socket) return;
+    const update = () => setIsConnected(!!socket.connected);
+    update();
+    const onConnect = () => setIsConnected(true);
+    const onDisconnect = () => setIsConnected(false);
+    socket.on('connect', onConnect);
+    socket.on('disconnect', onDisconnect);
+    return () => {
+      socket.off('connect', onConnect);
+      socket.off('disconnect', onDisconnect);
+    };
+  }, [socketRef]);
 
   /* --------------- Navigation ------------------------- */
   const handleBack = useCallback(() => {
@@ -183,15 +196,7 @@ function App() {
   };
 
   /* --------------- Room helpers ---------------------- */
-  const handleStartPlaying = () => {
-    const error = validateNickname(nickname);
-    if (error) {
-      setNicknameError(error);
-      return;
-    }
-    setNicknameError('');
-    setView('host');
-  };
+  
 
   const handleNicknameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
@@ -348,20 +353,17 @@ function App() {
         <>
           <div className="row center" style={{ justifyContent: 'center' }}>
             <div className={isConnected ? 'tag online' : 'tag offline'}>
-              {isConnected ? 'Connected' : 'Offline'}
+              {isConnected ? 'Server Connected' : 'Server Offline'}
             </div>
           </div>
           <MenuView
             nickname={nickname}
             nicknameError={nicknameError}
             onNicknameChange={handleNicknameChange}
-            onContinue={handleStartPlaying}
+            onCreate={handleHostRoom}
+            onJoin={() => setView('join')}
           />
         </>
-      )}
-
-      {view === 'host' && (
-        <HostView nickname={nickname} toJoin={() => setView('join')} toMenu={() => setView('menu')} onCreate={handleHostRoom} />
       )}
 
       {view === 'join' && (
@@ -374,7 +376,7 @@ function App() {
             setInputCode(v);
           }}
           onJoin={handleJoinRoom}
-          onBack={() => setView('host')}
+          onBack={() => setView('menu')}
         />
       )}
 
@@ -384,7 +386,9 @@ function App() {
           roomCode={roomCode}
           isHost={isHost}
           roundDuration={roundDuration}
+          category={category}
           onRoundDurationChange={handleRoundDurationChange}
+          onCategoryChange={setCategory}
           onStart={handleStartRound}
           onToggleReady={handleToggleReady}
           onQuit={handleBack}

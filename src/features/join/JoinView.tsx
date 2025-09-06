@@ -1,4 +1,5 @@
 // No React import needed for react-jsx runtime
+import { validateNickname } from '../../lib/validation';
 
 export function JoinView({
   nickname,
@@ -15,6 +16,8 @@ export function JoinView({
   onJoin: () => void;
   onBack: () => void;
 }) {
+  const isNicknameInvalid = !!validateNickname(nickname);
+  const isCodeInvalid = inputCode.trim().length !== 5;
   return (
     <div className="panel small" style={{ textAlign: 'center' }}>
       <h2>Join Room</h2>
@@ -33,7 +36,7 @@ export function JoinView({
       />
       {joinError && <div className="error">{joinError}</div>}
       <div className="row" style={{ justifyContent: 'center', marginTop: 8, flexWrap: 'wrap' }}>
-        <button className="btn primary" onClick={onJoin}>
+        <button className="btn primary" onClick={onJoin} disabled={isNicknameInvalid || isCodeInvalid} aria-disabled={isNicknameInvalid || isCodeInvalid}>
           Join
         </button>
         <button className="btn secondary" onClick={onBack}>
