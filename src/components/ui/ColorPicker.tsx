@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
 import type { JSX } from 'react';
 import { Palette, Pipette } from 'lucide-react';
 
