@@ -10,9 +10,10 @@ export function useSocket(): React.MutableRefObject<Socket | null> {
       socketRef.current = io(config.socketUrl, {
         transports: ['websocket', 'polling'],
         reconnectionDelayMax: 5000,
-        reconnectionAttempts: 5,
+        reconnectionAttempts: Infinity,
         timeout: 10000,
-        forceNew: true,
+        // Allow connection reuse within SPA lifecycle
+        forceNew: false,
         autoConnect: false,
       });
       const socket = socketRef.current;
@@ -20,7 +21,7 @@ export function useSocket(): React.MutableRefObject<Socket | null> {
       const onConnect = () => console.log('Successfully connected to server');
       const onConnectError = (error: unknown) => {
         console.error('Connection error:', error);
-        alert('Unable to connect to game server. Please try again later.');
+        // Avoid intrusive alerts on transient errors; surface via UI instead
       };
       const onDisconnect = (reason: string) => {
         console.log('Disconnected:', reason);

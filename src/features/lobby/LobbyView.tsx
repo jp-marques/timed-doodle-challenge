@@ -1,6 +1,9 @@
 // No React import needed for react-jsx runtime
-import { useMemo, type JSX } from 'react';
+import { useEffect, useMemo, useRef, useState, type JSX } from 'react';
+import { Shuffle, PawPrint, Box, Leaf, Utensils, Car, Wand2, Building2, Trophy, Lock } from 'lucide-react';
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import type { Player } from '../../types';
+import './lobby.css';
 
 export function LobbyView({
   players,
@@ -14,6 +17,7 @@ export function LobbyView({
   onToggleReady,
   onQuit,
   myId,
+  hostId: hostIdProp,
 }: {
   players: Player[];
   roomCode: string;
@@ -26,80 +30,178 @@ export function LobbyView({
   onToggleReady: () => void;
   onQuit: () => void;
   myId?: string;
+  hostId?: string;
 }) {
-  const hostId = useMemo(() => (players.length > 0 ? players[0].id : undefined), [players]);
+  // Use explicit hostId from server, fallback to players[0] for backwards compatibility
+  const hostId = hostIdProp ?? (players.length > 0 ? players[0].id : undefined);
   const allNonHostReady = useMemo(() => players.filter(p => p.id !== hostId).every(p => p.isReady), [players, hostId]);
 
+  // Local UI state
+  const durationPresets = useMemo(() => [30, 60, 90, 120] as number[], []);
+  // Derived: current duration is not one of the presets
+  const isCustomDuration = !durationPresets.includes(roundDuration);
+  // Keep custom input open for hosts until they explicitly choose a preset
+  const [showCustomDuration, setShowCustomDuration] = useState<boolean>(isHost && isCustomDuration);
+
+  const [copied, setCopied] = useState<boolean>(false);
+
+  // If in custom mode and the value equals a preset for 5s, return to preset mode.
+  const timersRef = useRef<number[]>([]);
+  const [isAutoClosing, setIsAutoClosing] = useState<boolean>(false);
+  const [highlightPreset, setHighlightPreset] = useState<boolean>(false);
+  const [confirmOpen, setConfirmOpen] = useState<boolean>(false);
+  function clearTimers() {
+    for (const id of timersRef.current) clearTimeout(id);
+    timersRef.current = [];
+  }
+  useEffect(() => {
+    clearTimers();
+    setIsAutoClosing(false);
+    // Non-hosts never show the custom input
+    if (!isHost) return;
+    if (!showCustomDuration) return;
+    if (!durationPresets.includes(roundDuration)) return;
+    const idleTimer = window.setTimeout(() => {
+      setIsAutoClosing(true);
+      const closeTimer = window.setTimeout(() => {
+        setShowCustomDuration(false);
+        setIsAutoClosing(false);
+        setHighlightPreset(true);
+        const highlightTimer = window.setTimeout(() => setHighlightPreset(false), 240);
+        timersRef.current.push(highlightTimer as unknown as number);
+      }, 220);
+      timersRef.current.push(closeTimer as unknown as number);
+    }, 5000);
+    timersRef.current.push(idleTimer as unknown as number);
+    return () => clearTimers();
+  }, [showCustomDuration, roundDuration, isHost, durationPresets]);
+
   const categories: Array<{ key: string; label: string; icon: JSX.Element }> = [
-    { key: 'random', label: 'Random', icon: (
-      <svg className="chip-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5 5h3m8 0h3M5 19h3m8 0h3M8 5l8 8m0-8L8 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
-    )},
-    { key: 'animals', label: 'Animals', icon: (
-      <svg className="chip-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M6 12c1.5-1.5 3-3 6-3s4.5 1.5 6 3m-9 3h6" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
-    )},
-    { key: 'objects', label: 'Objects', icon: (
-      <svg className="chip-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="6" y="6" width="12" height="12" rx="2" stroke="currentColor" strokeWidth="2"/></svg>
-    )},
-    { key: 'nature', label: 'Nature', icon: (
-      <svg className="chip-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 3v18m6-12c0 3.314-2.686 6-6 6s-6-2.686-6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
-    )},
-    { key: 'food', label: 'Food', icon: (
-      <svg className="chip-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M6 12h12M8 7h8M9 17h6" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
-    )},
-    { key: 'vehicles', label: 'Vehicles', icon: (
-      <svg className="chip-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 13h18l-2-5H5l-2 5zm3 5a2 2 0 100-4 2 2 0 000 4zm12 0a2 2 0 100-4 2 2 0 000 4z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"/></svg>
-    )},
-    { key: 'fantasy', label: 'Fantasy', icon: (
-      <svg className="chip-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 3l2 4 4 2-4 2-2 4-2-4-4-2 4-2 2-4z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"/></svg>
-    )},
-    { key: 'buildings', label: 'Buildings', icon: (
-      <svg className="chip-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 20h16V8l-4-3-4 3-4-3-4 3v12zM8 12h2m4 0h2" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"/></svg>
-    )},
-    { key: 'sports', label: 'Sports', icon: (
-      <svg className="chip-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2"/><path d="M12 3a12 12 0 000 18M12 3a12 12 0 010 18M3 12h18" stroke="currentColor" strokeWidth="2"/></svg>
-    )},
+    { key: 'random', label: 'Random', icon: (<Shuffle size={20} />) },
+    { key: 'animals', label: 'Animals', icon: (<PawPrint size={20} />) },
+    { key: 'objects', label: 'Objects', icon: (<Box size={20} />) },
+    { key: 'nature', label: 'Nature', icon: (<Leaf size={20} />) },
+    { key: 'food', label: 'Food', icon: (<Utensils size={20} />) },
+    { key: 'vehicles', label: 'Vehicles', icon: (<Car size={20} />) },
+    { key: 'fantasy', label: 'Fantasy', icon: (<Wand2 size={20} />) },
+    { key: 'buildings', label: 'Buildings', icon: (<Building2 size={20} />) },
+    { key: 'sports', label: 'Sports', icon: (<Trophy size={20} />) },
   ];
 
   const selectedKey = category ?? 'random';
 
   const sortedPlayers = useMemo(() => {
+    // Stable sort: host first, then ready users, then by nickname
     const list = [...players];
-    // Host first
-    list.sort((a, b) => (a.id === hostId ? -1 : b.id === hostId ? 1 : 0));
-    // Then ready, then waiting within non-hosts
-    return list.map(p => p).sort((a, b) => {
-      if (a.id === hostId || b.id === hostId) return 0;
-      const ar = a.isReady ? 0 : 1;
-      const br = b.isReady ? 0 : 1;
-      if (ar !== br) return ar - br;
+    return list.sort((a, b) => {
+      const aIsHost = a.id === hostId ? 0 : 1;
+      const bIsHost = b.id === hostId ? 0 : 1;
+      if (aIsHost !== bIsHost) return aIsHost - bIsHost;
+      const aReadyRank = a.isReady ? 0 : 1;
+      const bReadyRank = b.isReady ? 0 : 1;
+      if (aReadyRank !== bReadyRank) return aReadyRank - bReadyRank;
       return a.nickname.localeCompare(b.nickname);
     });
   }, [players, hostId]);
 
+  function getInitials(name: string): string {
+    const parts = name.trim().split(/\s+/);
+    const first = parts[0]?.[0] ?? '';
+    const second = parts.length > 1 ? parts[1][0] : '';
+    return (first + second).toUpperCase() || (name[0]?.toUpperCase() ?? '?');
+  }
+
+  function colorForId(id: string): string {
+    const palette = ['#dbeafe', '#fde68a', '#dcfce7', '#fee2e2', '#f5d0fe', '#e9d5ff', '#cffafe', '#fae8ff'];
+    let hash = 0;
+    for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
+    return palette[hash % palette.length];
+  }
+
+  function clampDuration(value: number): number {
+    if (Number.isNaN(value)) return roundDuration;
+    const min = 15;
+    const max = 300;
+    const step = 15;
+    const clamped = Math.max(min, Math.min(max, value));
+    // Snap to nearest step
+    const snapped = Math.round(clamped / step) * step;
+    return snapped;
+  }
+
+  async function copyText(text: string): Promise<boolean> {
+    try {
+      await navigator.clipboard?.writeText(text);
+      return true;
+    } catch (err) { console.warn('Clipboard write failed', err); }
+    try {
+      const el = document.createElement('textarea');
+      el.value = text;
+      el.style.position = 'fixed';
+      el.style.opacity = '0';
+      document.body.appendChild(el);
+      el.select();
+      document.execCommand('copy');
+      document.body.removeChild(el);
+      return true;
+    } catch (err) {
+      console.warn('Textarea copy fallback failed', err);
+      return false;
+    }
+  }
+
+  async function handleCopyRoomCode() {
+    const ok = await copyText(roomCode);
+    if (ok) {
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1500);
+    }
+  }
+
   return (
     <div className="panel" style={{ textAlign: 'center' }}>
       <div className="lobby-header">
-        <h2>Lobby</h2>
+        <h1>Lobby</h1>
         <div className="lobby-subhead">Get ready to draw! The game will begin shortly.</div>
         <div className="lobby-code">
-          <div className="room-chip" aria-label={`Room code ${roomCode}`}>
+          <div
+            className="room-chip"
+            aria-label={`Room code ${roomCode}`}
+            role="button"
+            tabIndex={0}
+            title="Click to copy room code"
+            onClick={handleCopyRoomCode}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleCopyRoomCode(); }}
+          >
             <span>Room</span>
             <code>{roomCode}</code>
           </div>
-          <button className="copy-btn" onClick={() => navigator.clipboard?.writeText(roomCode)}>Copy</button>
+          <button
+            className="copy-btn"
+            title="Copy room code"
+            onClick={handleCopyRoomCode}
+          >
+            {copied ? 'Copied!' : 'Copy'}
+          </button>
         </div>
       </div>
 
       <div className="lobby-grid">
         {/* Players card (left) */}
-        <div className="card" style={{ textAlign: 'left' }}>
+        <div className="card players-card" style={{ textAlign: 'left' }}>
           <h3>Players</h3>
           <div className="players">
             {sortedPlayers.map((p) => (
               <div key={p.id} className="player-row">
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <div style={{ width: 28, height: 28, borderRadius: 999, background: '#eef2ff', border: '1px solid var(--line)' }} />
-                  <div>
+                  <div
+                    className="avatar"
+                    style={{ background: colorForId(p.id) }}
+                    aria-hidden
+                  >
+                    {getInitials(p.nickname)}
+                  </div>
+                  <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 200 }}>
                     {p.nickname}
                     {p.id === myId ? ' (you)' : ''}
                   </div>
@@ -107,7 +209,7 @@ export function LobbyView({
                 {p.id === hostId ? (
                   <div className="badge host">Host</div>
                 ) : (
-                  <div className={p.isReady ? 'badge ready' : 'badge waiting'}>{p.isReady ? 'Ready' : 'Waiting'}</div>
+                  <div className={p.isReady ? 'badge ready' : 'badge waiting'}>{p.isReady ? 'Ready' : 'Not ready'}</div>
                 )}
               </div>
             ))}
@@ -115,66 +217,154 @@ export function LobbyView({
         </div>
 
         {/* Game settings card (right) */}
-        <div className="card" style={{ textAlign: 'left' }}>
-          <h3>Game settings</h3>
-          <div className="label" style={{ marginBottom: 8 }}>Category</div>
-          <div className="chip-rail" role="radiogroup" aria-label="Category">
+        <div className={isHost ? 'card' : 'card card-disabled'} style={{ textAlign: 'left' }}>
+          <h3 style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span>Game settings</span>
+            {!isHost && (
+              <span className="disabled-badge">
+                <Lock size={14} />
+                <span>Host controls</span>
+              </span>
+            )}
+          </h3>
+          {!isHost && <div className="muted">Only hosts can change game settings.</div>}
+
+          {/* Duration */}
+          <div className="label" style={{ marginBottom: 8 }}>Game duration</div>
+          <div className="segment-row" role="group" aria-label="Game duration presets" style={{ marginBottom: 8 }}>
+            {durationPresets.map((v) => {
+              const isSelectedPreset = !isCustomDuration && roundDuration === v;
+              return (
+                <button
+                  key={v}
+                  className={isSelectedPreset && highlightPreset ? 'segment highlight-in' : 'segment'}
+                  aria-pressed={isSelectedPreset}
+                  onClick={() => {
+                    if (!isHost) return;
+                    setShowCustomDuration(false);
+                    onRoundDurationChange(v);
+                  }}
+                  disabled={!isHost}
+                >
+                  {v} s
+                </button>
+              );
+            })}
+            <button
+              className="segment"
+              aria-pressed={isHost ? (showCustomDuration || isCustomDuration) : isCustomDuration}
+              onClick={() => isHost && setShowCustomDuration(true)}
+              disabled={!isHost}
+              aria-label={!isHost && isCustomDuration ? `Custom duration ${roundDuration} seconds` : 'Custom duration'}
+            >
+              Custom…
+            </button>
+            {isCustomDuration && !isHost && (
+              <span className="segment-value" aria-live="polite">{roundDuration} s</span>
+            )}
+          </div>
+          {isHost && showCustomDuration && (
+            <div className={isAutoClosing ? 'row fade-out' : 'row'} style={{ gap: 8, alignItems: 'center' }}>
+              <input
+                style={{ maxWidth: 160 }}
+                className="input"
+                type="number"
+                min={15}
+                max={300}
+                step={15}
+                value={roundDuration}
+                onChange={(e) => {
+                  if (!isHost) return;
+                  const value = clampDuration(parseInt(e.target.value));
+                  onRoundDurationChange(value);
+                }}
+                disabled={!isHost}
+                aria-label="Custom duration in seconds"
+              />
+              <div className="label">15–300s, step 15</div>
+            </div>
+          )}
+
+          {/* Category */}
+          <div className="label" id="category-label" style={{ marginTop: 16, marginBottom: 8 }}>Category</div>
+          <div className="category-grid" role="radiogroup" aria-labelledby="category-label">
             {categories.map((c) => {
               const checked = selectedKey === c.key;
               const disabled = !isHost;
               return (
                 <button
                   key={c.key}
-                  className="chip-item"
+                  className={checked ? 'category-tile selected' : 'category-tile'}
                   role="radio"
                   aria-checked={checked}
+                  aria-disabled={disabled}
                   disabled={disabled}
+                  tabIndex={checked ? 0 : -1}
                   onClick={() => onCategoryChange?.(c.key === 'random' ? null : c.key)}
                 >
-                  {c.icon}
-                  <span>{c.label}</span>
+                  <span className="tile-icon" aria-hidden>{c.icon}</span>
+                  <span className="tile-label">{c.label}</span>
                 </button>
               );
             })}
           </div>
-
-          <div style={{ height: 12 }} />
-          <div className="label" style={{ marginBottom: 8 }}>Duration (seconds)</div>
-          <div className="preset-row" style={{ marginBottom: 8 }}>
-            {[30, 60, 90, 120].map((v) => (
-              <button key={v} className="preset" aria-pressed={roundDuration === v} onClick={() => isHost && onRoundDurationChange(v)} disabled={!isHost}>
-                {v}
-              </button>
-            ))}
-          </div>
-          <input
-            style={{ maxWidth: 140 }}
-            className="input"
-            type="number"
-            min={15}
-            max={300}
-            step={15}
-            value={roundDuration}
-            onChange={(e) => isHost && onRoundDurationChange(parseInt(e.target.value))}
-            disabled={!isHost}
-          />
-          <div className="label" style={{ marginTop: 6 }}>15–300s, step 15</div>
         </div>
       </div>
 
       {/* Actions */}
-      <div className="card sticky-action" style={{ margin: '0 auto', maxWidth: 640, textAlign: 'center' }}>
+      <div className="lobby-actions sticky-action" role="group" aria-label="Lobby actions">
         {isHost ? (
-          <button className="btn primary" onClick={onStart} disabled={!allNonHostReady}>Start Game</button>
+          <>
+            <button className="btn primary" onClick={onStart} disabled={!allNonHostReady}>Start Game</button>
+            <div className="label ready-counter" aria-live="polite" style={{ alignSelf: 'center' }}>
+              {players.filter(p => p.id !== hostId && p.isReady).length}/{players.filter(p => p.id !== hostId).length} ready
+            </div>
+            <button
+              className="btn danger"
+              onClick={() => {
+                setConfirmOpen(true);
+              }}
+            >
+              Quit
+            </button>
+          </>
         ) : (
-          <button className="btn primary" onClick={onToggleReady}>
-            {players.find((p) => p.id === myId)?.isReady ? 'Unready' : "I'm ready"}
-          </button>
+          <>
+            <button className="btn primary" onClick={onToggleReady}>
+              {players.find((p) => p.id === myId)?.isReady ? 'Not ready' : "I'm ready"}
+            </button>
+            <div className="label ready-counter" aria-live="polite" style={{ alignSelf: 'center' }}>
+              {players.filter(p => p.id !== hostId && p.isReady).length}/{players.filter(p => p.id !== hostId).length} ready
+            </div>
+            <button
+              className="btn danger"
+              onClick={() => {
+                const othersPresent = players.length > 1;
+                if (othersPresent) setConfirmOpen(true); else onQuit();
+              }}
+            >
+              Quit
+            </button>
+          </>
         )}
-        <div style={{ marginTop: 8 }}>
-          <button className="btn danger" onClick={onQuit}>Quit</button>
-        </div>
       </div>
+
+      {/* Toast removed: inline button state provides feedback */}
+
+      {/* Confirm quit dialog */}
+      <ConfirmDialog
+        open={confirmOpen}
+        title={isHost ? 'Disband lobby?' : 'Leave lobby?'}
+        description={isHost ? 'Leaving will disband the lobby for everyone.' : 'You can rejoin with the room code.'}
+        confirmLabel={isHost ? 'Disband & Quit' : 'Leave'}
+        cancelLabel="Cancel"
+        tone="danger"
+        onCancel={() => setConfirmOpen(false)}
+        onConfirm={() => {
+          setConfirmOpen(false);
+          onQuit();
+        }}
+      />
     </div>
   );
 }

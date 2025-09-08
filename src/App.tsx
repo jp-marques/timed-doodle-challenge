@@ -5,7 +5,7 @@ import { MenuView } from './features/menu/MenuView';
 import { JoinView } from './features/join/JoinView';
 import { LobbyView } from './features/lobby/LobbyView';
 import { ResultsView } from './features/results/ResultsView';
-import type { Player, ChatMessage } from './types';
+import type { Player, ChatMessage, LobbyUpdate, SettingsUpdate } from './types';
 import { validateNickname, validateRoundDuration } from './lib/validation';
 import { useSocket } from './lib/useSocket';
 
@@ -24,9 +24,15 @@ function App() {
   const [roundDuration, setRoundDuration] = useState(60); // Round duration setting for hosts
   const [drawings, setDrawings] = useState<Record<string, string>>({});
   const [isHost, setIsHost] = useState(false);
+  // Lobby preference; null means Random
   const [category, setCategory] = useState<string | null>(null);
+  // Active round category (for the drawing screen)
+  const [roundCategory, setRoundCategory] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
+  const [hostId, setHostId] = useState<string | null>(null);
+  const [myId, setMyId] = useState<string | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   /* --------------- Canvas / drawing state ------------- */
   const canvasRef = useRef<HTMLCanvasElement>(null) as React.RefObject<HTMLCanvasElement>;
@@ -54,7 +60,7 @@ function App() {
       socket.off('connect', onConnect);
       socket.off('disconnect', onDisconnect);
     };
-  }, []);
+  }, [socketRef]);
 
   /* --------------- Chat state ------------------------- */
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
@@ -78,6 +84,11 @@ function App() {
 
   /* --------------- Navigation ------------------------- */
   const handleBack = useCallback(() => {
+    const socket = socketRef.current;
+    if (socket && roomCode) {
+      socket.emit('leave-room', roomCode);
+    }
+    try { sessionStorage.removeItem('td.session'); } catch {}
     setView('menu');
     setRoomCode('');
     setInputCode('');
@@ -88,8 +99,9 @@ function App() {
     setMyDrawing(null);
     setPlayers([]);
     setIsHost(false);
+    setHostId(null);
     setChatMessages([]); // Clear chat messages when leaving room
-  }, []);
+  }, [roomCode]);
 
   // Socket lifecycle is handled by useSocket
 
@@ -101,13 +113,66 @@ function App() {
     socketRef.current.emit('submit-drawing', { code: roomCode, drawing: dataUrl });
   }, [roomCode]);
 
+  /* --------------- Auto rejoin on connect -------------- */
+  useEffect(() => {
+    const socket = socketRef.current;
+    if (!socket) return;
+
+    const tryRejoin = () => {
+      try {
+        const raw = sessionStorage.getItem('td.session');
+        if (!raw) return;
+        const session = JSON.parse(raw) as { code: string; myId: string; nickname: string; token: string; isHost: boolean };
+        if (!session?.code || !session?.myId || !session?.token) return;
+        socket.emit('rejoin-room', { code: session.code.trim().toUpperCase(), playerId: session.myId, token: session.token, nickname: session.nickname }, (res: { ok: boolean; myId?: string; hostId?: string; error?: string }) => {
+          if (!res?.ok) {
+            try { sessionStorage.removeItem('td.session'); } catch {}
+            return;
+          }
+          setRoomCode(session.code.trim().toUpperCase());
+          setMyId(res.myId || session.myId);
+          setIsHost((res.hostId || '') === (res.myId || session.myId));
+          setChatMessages([]);
+          setView('lobby');
+        });
+      } catch {}
+    };
+
+    // If already connected (e.g., hot reload), attempt immediately
+    if (socket.connected) tryRejoin();
+    socket.on('connect', tryRejoin);
+    return () => {
+      socket.off('connect', tryRejoin);
+    };
+  }, [socketRef]);
+
   /* --------------- Socket event listeners ------------- */
   useEffect(() => {
     const socket = socketRef.current;
     if (!socket) return;
 
-    function onLobbyUpdate(updatedPlayers: Player[]) {
-      setPlayers(updatedPlayers);
+    function onLobbyUpdate(update: LobbyUpdate) {
+      let nextPlayers: Player[] = players;
+      let nextHostId: string | null = hostId;
+      if (Array.isArray(update)) {
+        nextPlayers = update as unknown as Player[];
+        nextHostId = update[0]?.id ?? null; // fallback for backwards compatibility
+      } else {
+        nextPlayers = update.players;
+        nextHostId = update.hostId;
+      }
+
+      // Detect host change and show toast with new host nickname
+      if (hostId && nextHostId && nextHostId !== hostId) {
+        const newHost = nextPlayers.find(p => p.id === nextHostId);
+        const name = newHost?.nickname || 'Unknown';
+        setToastMessage(`New host: ${name}`);
+        // Auto-hide after 3 seconds
+        window.setTimeout(() => setToastMessage(null), 3000);
+      }
+
+      setPlayers(nextPlayers);
+      setHostId(nextHostId);
     }
 
     function onRoundStart({
@@ -120,7 +185,7 @@ function App() {
       category?: string;
     }) {
       setPrompt(prompt);
-      setCategory(category || null);
+      setRoundCategory(category || null);
       setTimer(duration);
       setMyDrawing(null);
       setView('draw');
@@ -142,30 +207,32 @@ function App() {
     }
 
     function onRoundEnd({ drawings }: { drawings: Record<string, string> }) {
+      // Guard against race: if user has left the room, ignore stale round-end
+      if (!roomCode) return;
       setDrawings(drawings);
       setView('results');
-    }
-
-    function onHostLeft() {
-      alert('Host has left the game');
-      handleBack();
     }
 
     function onChatMessage(msg: ChatMessage) {
       setChatMessages((prev) => [...prev.slice(-49), msg]); // keep last 50
     }
 
+    function onSettingsUpdate(payload: SettingsUpdate) {
+      if (typeof payload.roundDuration === 'number') setRoundDuration(payload.roundDuration);
+      if (typeof payload.category !== 'undefined') setCategory(payload.category ?? null);
+    }
+
     socket.on('lobby-update', onLobbyUpdate);
+    socket.on('settings-update', onSettingsUpdate);
     socket.on('round-start', onRoundStart);
     socket.on('round-end', onRoundEnd);
-    socket.on('host-left', onHostLeft);
     socket.on('chat-message', onChatMessage);
 
     return () => {
       socket.off('lobby-update', onLobbyUpdate);
+      socket.off('settings-update', onSettingsUpdate);
       socket.off('round-start', onRoundStart);
       socket.off('round-end', onRoundEnd);
-      socket.off('host-left', onHostLeft);
       socket.off('chat-message', onChatMessage);
     };
   }, [handleBack]);
@@ -188,10 +255,23 @@ function App() {
   /* --------------- Validation helpers ---------------- */
   // Imported from lib/validation
 
+  const debounceRef = useRef<number | null>(null);
   const handleRoundDurationChange = (newDuration: number) => {
     const error = validateRoundDuration(newDuration);
-    if (!error) {
-      setRoundDuration(newDuration);
+    if (error) return;
+    setRoundDuration(newDuration);
+    if (isHost && socketRef.current && roomCode) {
+      if (debounceRef.current) window.clearTimeout(debounceRef.current);
+      debounceRef.current = window.setTimeout(() => {
+        socketRef.current?.emit('update-settings', { code: roomCode, roundDuration: newDuration });
+      }, 200);
+    }
+  };
+
+  const handleCategoryPrefChange = (cat: string | null) => {
+    setCategory(cat);
+    if (isHost && socketRef.current && roomCode) {
+      socketRef.current.emit('update-settings', { code: roomCode, category: cat });
     }
   };
 
@@ -201,11 +281,8 @@ function App() {
   const handleNicknameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setNickname(value);
-    
-    // Clear error immediately if user starts typing valid input
-    if (nicknameError && value.trim().length >= 2) {
-      setNicknameError('');
-    }
+    const error = validateNickname(value);
+    setNicknameError(error ?? '');
   };
 
   const handleHostRoom = () => {
@@ -225,17 +302,39 @@ function App() {
       return;
     }
     setLoading(true);
-    socket.emit('host-room', { nickname: nickname.trim() }, (response: { code?: string; error?: string }) => {
+    socket.emit('host-room', { nickname: nickname.trim() }, (response: { code?: string; myId?: string; token?: string; error?: string }) => {
       setLoading(false);
       if (response.error || !response.code) {
         setNicknameError(response.error || 'Failed to create room');
         return;
       }
       setRoomCode(response.code);
+      if (response.myId) setMyId(response.myId);
       setIsHost(true);
+      // Persist session for auto-rejoin
+      try {
+        if (response.myId && response.token) {
+          sessionStorage.setItem('td.session', JSON.stringify({
+            code: response.code,
+            myId: response.myId,
+            nickname: nickname.trim(),
+            token: response.token,
+            isHost: true,
+          }));
+        }
+      } catch {}
       setChatMessages([]); // Clear chat messages when joining new room
       setView('lobby');
     });
+  };
+
+  const handleGoToJoin = () => {
+    const error = validateNickname(nickname);
+    if (error) {
+      setNicknameError(error);
+      return;
+    }
+    setView('join');
   };
 
   const handleJoinRoom = () => {
@@ -258,11 +357,24 @@ function App() {
     socket.emit(
       'join-room',
       { code: inputCode.trim().toUpperCase(), nickname: nickname.trim() },
-      (res: { success: boolean; error?: string }) => {
+      (res: { success: boolean; error?: string; myId?: string; token?: string }) => {
         setLoading(false);
         if (res.success) {
+          if (res.myId) setMyId(res.myId);
           setRoomCode(inputCode);
           setIsHost(false);
+          // Persist session for auto-rejoin
+          try {
+            if (res.myId && res.token) {
+              sessionStorage.setItem('td.session', JSON.stringify({
+                code: inputCode.trim().toUpperCase(),
+                myId: res.myId,
+                nickname: nickname.trim(),
+                token: res.token,
+                isHost: false,
+              }));
+            }
+          } catch {}
           setChatMessages([]); // Clear chat messages when joining new room
           setView('lobby');
         } else {
@@ -277,7 +389,7 @@ function App() {
   };
 
   const handleStartRound = () => {
-    if (isHost) socketRef.current?.emit('start-round', { code: roomCode, duration: roundDuration });
+    if (isHost) socketRef.current?.emit('start-round', { code: roomCode });
   };
 
   const handleClearCanvas = () => {
@@ -336,19 +448,20 @@ function App() {
   /* --------------- Send chat message --------------------- */
   const handleSendChat = () => {
     if (!chatInput.trim() || !socketRef.current || !roomCode) return;
-    socketRef.current.emit('chat-message', {
-      code: roomCode,
-      text: chatInput,
-      nickname,
-      id: socketRef.current.id,
-      time: Date.now(),
-    });
+    socketRef.current.emit('chat-message', { code: roomCode, text: chatInput });
     setChatInput('');
   };
 
   /* --------------- Render ----------------------------- */
   return (
     <div className="page">
+      {toastMessage && (
+        <div className="overlay" style={{ pointerEvents: 'none', background: 'transparent' }}>
+          <div className="tag online" style={{ position: 'fixed', top: 12, left: '50%', transform: 'translateX(-50%)', zIndex: 1000 }}>
+            {toastMessage}
+          </div>
+        </div>
+      )}
       {view === 'menu' && (
         <>
           <div className="row center" style={{ justifyContent: 'center' }}>
@@ -361,7 +474,7 @@ function App() {
             nicknameError={nicknameError}
             onNicknameChange={handleNicknameChange}
             onCreate={handleHostRoom}
-            onJoin={() => setView('join')}
+            onJoin={handleGoToJoin}
           />
         </>
       )}
@@ -388,11 +501,12 @@ function App() {
           roundDuration={roundDuration}
           category={category}
           onRoundDurationChange={handleRoundDurationChange}
-          onCategoryChange={setCategory}
+          onCategoryChange={handleCategoryPrefChange}
           onStart={handleStartRound}
           onToggleReady={handleToggleReady}
           onQuit={handleBack}
-          myId={socketRef.current?.id}
+          myId={myId ?? undefined}
+          hostId={hostId ?? undefined}
         />
       )}
 
@@ -411,7 +525,7 @@ function App() {
           submitted={!!myDrawing}
           timer={timer}
           prompt={prompt}
-          category={category}
+          category={roundCategory}
           getCategoryIcon={getCategoryIcon}
           canvasRef={canvasRef}
           onQuit={handleBack}
@@ -419,7 +533,7 @@ function App() {
           chatInput={chatInput}
           setChatInput={setChatInput}
           handleSendChat={handleSendChat}
-          myId={socketRef.current?.id}
+          myId={myId ?? undefined}
         />
       )}
 
