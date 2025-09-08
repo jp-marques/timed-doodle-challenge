@@ -103,3 +103,5 @@ server/node_modules/
 server/.env
 server/dist/
 server/build/
+
+/DEVELOPMENT.md

@@ -354,8 +354,16 @@ io.on('connection', (socket) => {
 
       const trimmedCode = normalizeCode(code);
 
-      if (rooms[trimmedCode] && socket.id === rooms[trimmedCode].hostSocketId) {
-        const room = rooms[trimmedCode];
+      const room = rooms[trimmedCode];
+      if (room) {
+        // Authorize by player id and tolerate reconnects
+        const player = room.players.find(p => p.socketId === socket.id);
+        if (!player || player.id !== room.host) {
+          console.error('Unauthorized start-round attempt or not host');
+          return;
+        }
+        // Refresh host binding to current socket
+        room.hostSocketId = socket.id;
         // Use server authoritative settings
         const duration = room.roundDuration;
         // Determine category for this round only (preference can be null = random)
@@ -397,8 +405,11 @@ io.on('connection', (socket) => {
       const trimmedCode = normalizeCode(code);
       if (!trimmedCode || !rooms[trimmedCode]) return;
       const room = rooms[trimmedCode];
-      // Only host can update settings
-      if (socket.id !== room.hostSocketId) return;
+      // Only host can update settings (authorize by player id)
+      const player = room.players.find(p => p.socketId === socket.id);
+      if (!player || player.id !== room.host) return;
+      // Refresh host binding to current socket
+      room.hostSocketId = socket.id;
       // Do not allow edits mid-round to avoid confusion
       if (room.endsAt) return;
 
