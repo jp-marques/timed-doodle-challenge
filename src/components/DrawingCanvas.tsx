@@ -1,6 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
+import type { JSX } from 'react';
 import { useAutoSizedCanvas } from '../lib/useAutoSizedCanvas';
 import type { ChatMessage } from '../types';
+import { ConfirmDialog } from './ui/ConfirmDialog';
+import { Brush, PaintBucket, Clock, Check } from 'lucide-react';
+import { ColorPicker } from './ui/ColorPicker';
 
 export type DrawingTool = 'brush' | 'bucket';
 
@@ -16,9 +20,10 @@ export type DrawingCanvasProps = {
   canSubmit: boolean;
   submitted: boolean;
   timer: number;
+  totalDuration: number;
   prompt: string;
   category: string | null;
-  getCategoryIcon: (cat: string) => string;
+  getCategoryIcon: (cat: string) => JSX.Element;
   canvasRef: React.RefObject<HTMLCanvasElement>;
   onQuit: () => void;
   chatMessages: ChatMessage[];
@@ -41,6 +46,7 @@ export default function DrawingCanvas(props: DrawingCanvasProps) {
     canSubmit,
     submitted,
     timer,
+    totalDuration,
     prompt,
     category,
     getCategoryIcon,
@@ -58,6 +64,9 @@ export default function DrawingCanvas(props: DrawingCanvasProps) {
   const [canvasHistory, setCanvasHistory] = useState<string[]>([]);
   const MAX_HISTORY = 20;
   const hasMoved = useRef(false);
+  const [confirmClear, setConfirmClear] = useState(false);
+  const [confirmQuit, setConfirmQuit] = useState(false);
+  const [eyedropperActive, setEyedropperActive] = useState(false);
 
   useAutoSizedCanvas(canvasRef);
 
@@ -73,6 +82,26 @@ export default function DrawingCanvas(props: DrawingCanvasProps) {
     if (!canvas) return;
     const dataUrl = canvas.toDataURL();
     setCanvasHistory((prev) => [...prev, dataUrl].slice(-MAX_HISTORY));
+  };
+
+  const rgbaToHex = (r: number, g: number, b: number) => {
+    const toHex = (v: number) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0');
+    return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+  };
+
+  const sampleCanvasColor = (clientX: number, clientY: number) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    const rect = canvas.getBoundingClientRect();
+    const { sx, sy } = getScale();
+    const x = Math.floor((clientX - rect.left) * sx);
+    const y = Math.floor((clientY - rect.top) * sy);
+    if (x < 0 || y < 0 || x >= canvas.width || y >= canvas.height) return;
+    const data = ctx.getImageData(x, y, 1, 1).data;
+    const hex = rgbaToHex(data[0], data[1], data[2]);
+    onChangeColor(hex);
   };
 
   const handleClearWithHistory = () => {
@@ -103,6 +132,12 @@ export default function DrawingCanvas(props: DrawingCanvasProps) {
     const { sx, sy } = getScale();
     const x = Math.floor((e.clientX - rect.left) * sx);
     const y = Math.floor((e.clientY - rect.top) * sy);
+    // Eyedropper: Alt-click or active mode samples color instead of drawing
+    if (e.altKey || eyedropperActive) {
+      sampleCanvasColor(e.clientX, e.clientY);
+      setEyedropperActive(false);
+      return;
+    }
     if (selectedTool === 'bucket') {
       saveCanvasState();
       floodFill(x, y, color);
@@ -119,6 +154,10 @@ export default function DrawingCanvas(props: DrawingCanvasProps) {
   };
 
   const handlePointerMove = (e: React.PointerEvent) => {
+    if (eyedropperActive) {
+      // Show hover sampling when eyedropper is active (do not change color until click)
+      return;
+    }
     if (!isDrawing.current || selectedTool !== 'brush') return;
     const canvas = canvasRef.current;
     if (!canvas || !lastPoint.current) return;
@@ -130,7 +169,7 @@ export default function DrawingCanvas(props: DrawingCanvasProps) {
     const y = (e.clientY - rect.top) * sy;
     hasMoved.current = true;
     ctx.strokeStyle = color;
-    ctx.lineWidth = brushSize;
+    ctx.lineWidth = brushSize * sx;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
     ctx.beginPath();
@@ -146,11 +185,12 @@ export default function DrawingCanvas(props: DrawingCanvasProps) {
       if (canvas) {
         const ctx = canvas.getContext('2d');
         if (ctx) {
+          const { sx } = getScale();
           ctx.strokeStyle = color;
-          ctx.lineWidth = brushSize;
+          ctx.lineWidth = brushSize * sx;
           ctx.lineCap = 'round';
           ctx.beginPath();
-          ctx.arc(lastPoint.current.x, lastPoint.current.y, brushSize / 2, 0, Math.PI * 2);
+          ctx.arc(lastPoint.current.x, lastPoint.current.y, (brushSize / 2) * sx, 0, Math.PI * 2);
           ctx.fillStyle = color;
           ctx.fill();
         }
@@ -228,60 +268,107 @@ export default function DrawingCanvas(props: DrawingCanvasProps) {
 
   return (
     <div className="dc-root panel">
-      <div className="row center section narrow" style={{ gap: 12 }}>
-        {category && <div>{getCategoryIcon(category)}</div>}
-        <div>
-          Draw: <strong>{prompt}</strong>
-        </div>
-        <div className="muted">⏰ {timer}s</div>
-      </div>
-      <div className="section wide draw-grid" style={{ marginLeft: 'auto', marginRight: 'auto' }}>
-        <div className="tools">
-          <div className="row">
-            <button className={`btn ${selectedTool === 'brush' ? 'primary' : ''}`} onClick={() => onChangeTool('brush')}>
-              🖌️ Brush
-            </button>
-            <button className={`btn ${selectedTool === 'bucket' ? 'primary' : ''}`} onClick={() => onChangeTool('bucket')}>
-              🪣 Bucket
-            </button>
-          </div>
-          <div className="label">Color</div>
-          <input className="input" type="color" value={color} onChange={(e) => onChangeColor(e.target.value)} />
-          {selectedTool === 'brush' && (
-            <div>
-              <div className="label">Brush size: {brushSize}px</div>
-              <input className="range" type="range" min={2} max={40} value={brushSize} onChange={(e) => onChangeBrushSize(Number(e.target.value))} />
+      <div className="section draw-topbar">
+        <div className="left">
+          {category && (
+            <div className="card category-card" aria-label="Category">
+              <div className="category-icon">{getCategoryIcon(category)}</div>
             </div>
           )}
-          <button className="btn" onClick={handleClearWithHistory}>
-            Clear
+        </div>
+        <div className="center" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+          <div className="label">Prompt</div>
+          <div className="prompt-title">{prompt}</div>
+          <div className="time-progress" aria-hidden>
+            <div
+              className="bar"
+              style={{
+                width: `${Math.max(0, Math.min(100, (totalDuration > 0 ? (timer / totalDuration) : 0) * 100))}%`,
+                background: timer <= 10 ? 'var(--danger)' : 'var(--primary)',
+              }}
+            />
+          </div>
+        </div>
+        <div className="right" style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+          <div className="timer-chip"><Clock size={16} /> {timer}s</div>
+          {submitted && <div className="tag ready">Submitted</div>}
+        </div>
+      </div>
+      <div className="section wide draw-grid" style={{ marginLeft: 'auto', marginRight: 'auto', alignItems: 'stretch' }}>
+        <div className="card tools-rail">
+          <button className={`btn icon ${selectedTool === 'brush' ? 'primary' : ''}`} onClick={() => onChangeTool('brush')} aria-label="Brush">
+            <Brush size={18} />
           </button>
-          <button className="btn" onClick={handleUndo} disabled={canvasHistory.length === 0}>
-            Undo
+          <button className={`btn icon ${selectedTool === 'bucket' ? 'primary' : ''}`} onClick={() => onChangeTool('bucket')} aria-label="Bucket">
+            <PaintBucket size={18} />
           </button>
-          <button className="btn danger" onClick={onQuit}>
-            Quit
-          </button>
+          <ColorPicker
+            label="Color"
+            value={color}
+            onChange={onChangeColor}
+            isEyedropperActive={eyedropperActive}
+            onEyedropperToggle={() => setEyedropperActive(v => !v)}
+          />
+          <div>
+            <div className="row between" style={{ alignItems: 'center' }}>
+              <div className="label">Brush size: {brushSize}px</div>
+              <div className="brush-preview" aria-hidden>
+                <span
+                  className="brush-dot"
+                  style={{
+                    width: Math.max(8, Math.min(brushSize, 32)),
+                    height: Math.max(8, Math.min(brushSize, 32)),
+                    background: color,
+                  }}
+                />
+              </div>
+            </div>
+            <input className="range" type="range" min={2} max={40} value={brushSize} onChange={(e) => onChangeBrushSize(Number(e.target.value))} />
+          </div>
+          <button className="btn" onClick={() => setConfirmClear(true)}>Clear</button>
+          <button className="btn" onClick={handleUndo} disabled={canvasHistory.length === 0}>Undo</button>
         </div>
 
-        <div className="canvas-col">
-          <canvas
-            ref={canvasRef}
-            className={`canvas ${selectedTool === 'brush' ? 'cursor-brush' : 'cursor-bucket'}`}
-            onPointerDown={handlePointerDown}
-            onPointerMove={handlePointerMove}
-            onPointerUp={handlePointerUp}
-            onPointerLeave={handlePointerUp}
-            tabIndex={0}
-          />
-          <div className="row center">
-            <button className="btn primary" onClick={onSubmit} disabled={!canSubmit}>
-              {submitted ? 'Submitted' : 'Submit Drawing'}
+        <div className="card canvas-col" style={{ height: '100%' }}>
+          <div className="canvas-wrap">
+            <canvas
+              ref={canvasRef}
+              className={`canvas ${eyedropperActive ? 'cursor-pipette' : (selectedTool === 'brush' ? 'cursor-brush' : 'cursor-bucket')}`}
+              onPointerDown={handlePointerDown}
+              onPointerMove={handlePointerMove}
+              onPointerUp={handlePointerUp}
+              onPointerLeave={handlePointerUp}
+              tabIndex={0}
+            />
+            <button className="btn primary submit-fab" onClick={onSubmit} disabled={!canSubmit}>
+              {submitted ? <Check size={16} /> : 'Submit'}
             </button>
+          </div>
+          <div className="tools-grid">
+            <button className={`btn ${selectedTool === 'brush' ? 'primary' : ''}`} onClick={() => onChangeTool('brush')}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Brush size={16} /> Brush</span>
+            </button>
+            <div style={{ gridColumn: 'span 2' }}>
+              <ColorPicker
+                label="Color"
+                value={color}
+                onChange={onChangeColor}
+                isEyedropperActive={eyedropperActive}
+                onEyedropperToggle={() => setEyedropperActive(v => !v)}
+              />
+            </div>
+            <button className={`btn ${selectedTool === 'bucket' ? 'primary' : ''}`} onClick={() => onChangeTool('bucket')}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><PaintBucket size={16} /> Bucket</span>
+            </button>
+            <input className="range" type="range" min={2} max={40} value={brushSize} onChange={(e) => onChangeBrushSize(Number(e.target.value))} />
+            <button className="btn" onClick={() => setConfirmClear(true)}>Clear</button>
+            <button className="btn" onClick={handleUndo} disabled={canvasHistory.length === 0}>Undo</button>
+            <div />
+            <button className="btn danger quit" onClick={() => setConfirmQuit(true)}>Quit</button>
           </div>
         </div>
 
-        <div className="chat-col">
+        <div className="card chat-col">
           <div className="label">Chat</div>
           <div className="chat-messages">
             {chatMessages.length === 0 && <div className="muted" style={{ textAlign: 'center' }}>No messages yet</div>}
@@ -322,6 +409,36 @@ export default function DrawingCanvas(props: DrawingCanvasProps) {
           </form>
         </div>
       </div>
+      <div className="section wide draw-actions">
+        <button className="btn primary" onClick={onSubmit} disabled={!canSubmit}>{submitted ? 'Submitted' : 'Submit Drawing'}</button>
+        <button className="btn danger" onClick={() => setConfirmQuit(true)}>Quit</button>
+      </div>
+      <ConfirmDialog
+        open={confirmClear}
+        title="Clear drawing?"
+        description="This cannot be undone."
+        confirmLabel="Clear"
+        cancelLabel="Cancel"
+        tone="danger"
+        onCancel={() => setConfirmClear(false)}
+        onConfirm={() => {
+          setConfirmClear(false);
+          handleClearWithHistory();
+        }}
+      />
+      <ConfirmDialog
+        open={confirmQuit}
+        title="Leave round?"
+        description="You can rejoin with the room code."
+        confirmLabel="Leave"
+        cancelLabel="Cancel"
+        tone="danger"
+        onCancel={() => setConfirmQuit(false)}
+        onConfirm={() => {
+          setConfirmQuit(false);
+          onQuit();
+        }}
+      />
     </div>
   );
 }

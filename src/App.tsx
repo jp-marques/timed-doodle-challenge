@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import type { JSX } from 'react';
 import './App.css';
 import DrawingCanvas from './components/DrawingCanvas';
 import { MenuView } from './features/menu/MenuView';
@@ -7,6 +8,7 @@ import { LobbyView } from './features/lobby/LobbyView';
 import { ResultsView } from './features/results/ResultsView';
 import type { Player, ChatMessage, LobbyUpdate, SettingsUpdate } from './types';
 import { validateNickname, validateRoundDuration } from './lib/validation';
+import { Shuffle, PawPrint, Box, Leaf, Utensils, Car, Wand2, Building2, Trophy } from 'lucide-react';
 import { useSocket } from './lib/useSocket';
 
 /* ─────────────────────────────────────────────────── */
@@ -88,7 +90,7 @@ function App() {
     if (socket && roomCode) {
       socket.emit('leave-room', roomCode);
     }
-    try { sessionStorage.removeItem('td.session'); } catch {}
+    try { sessionStorage.removeItem('td.session'); } catch (err) { void err; }
     setView('menu');
     setRoomCode('');
     setInputCode('');
@@ -108,7 +110,7 @@ function App() {
   // Submit current canvas drawing to server
   const handleSubmitDrawing = useCallback(() => {
     if (!canvasRef.current || !socketRef.current || !roomCode) return;
-    const dataUrl = canvasRef.current.toDataURL();
+    const dataUrl = canvasRef.current.toDataURL('image/webp', 0.9);
     setMyDrawing(dataUrl);
     socketRef.current.emit('submit-drawing', { code: roomCode, drawing: dataUrl });
   }, [roomCode]);
@@ -126,7 +128,7 @@ function App() {
         if (!session?.code || !session?.myId || !session?.token) return;
         socket.emit('rejoin-room', { code: session.code.trim().toUpperCase(), playerId: session.myId, token: session.token, nickname: session.nickname }, (res: { ok: boolean; myId?: string; hostId?: string; error?: string }) => {
           if (!res?.ok) {
-            try { sessionStorage.removeItem('td.session'); } catch {}
+            try { sessionStorage.removeItem('td.session'); } catch (err) { void err; }
             return;
           }
           setRoomCode(session.code.trim().toUpperCase());
@@ -135,7 +137,7 @@ function App() {
           setChatMessages([]);
           setView('lobby');
         });
-      } catch {}
+      } catch (err) { void err; }
     };
 
     // If already connected (e.g., hot reload), attempt immediately
@@ -239,18 +241,18 @@ function App() {
 
   /* --------------- Timer effect ----------------------- */
   useEffect(() => {
-    let interval: number;
-    if (view === 'draw' && timer > 0) {
-      interval = window.setInterval(() => {
-        setTimer((t) => {
-          const newTime = t - 1;
-          if (newTime <= 0) handleSubmitDrawing();
-          return newTime;
-        });
-      }, 1000);
-    }
+    if (view !== 'draw') return;
+    const interval = window.setInterval(() => {
+      setTimer((t) => {
+        const newTime = t - 1;
+        if (newTime <= 0) {
+          if (!myDrawing) handleSubmitDrawing();
+        }
+        return newTime;
+      });
+    }, 1000);
     return () => clearInterval(interval);
-  }, [view, timer, handleSubmitDrawing]);
+  }, [view, handleSubmitDrawing, myDrawing]);
 
   /* --------------- Validation helpers ---------------- */
   // Imported from lib/validation
@@ -322,7 +324,7 @@ function App() {
             isHost: true,
           }));
         }
-      } catch {}
+      } catch (err) { void err; }
       setChatMessages([]); // Clear chat messages when joining new room
       setView('lobby');
     });
@@ -374,7 +376,7 @@ function App() {
                 isHost: false,
               }));
             }
-          } catch {}
+          } catch (err) { void err; }
           setChatMessages([]); // Clear chat messages when joining new room
           setView('lobby');
         } else {
@@ -401,26 +403,26 @@ function App() {
   };
 
   /* --------------- Utility ---------------------------- */
-  function getCategoryIcon(category: string) {
+  function getCategoryIcon(category: string): JSX.Element {
     switch (category) {
       case 'animals':
-        return '🐾';
+        return (<PawPrint size={32} />);
       case 'objects':
-        return '📦';
+        return (<Box size={32} />);
       case 'nature':
-        return '🌳';
+        return (<Leaf size={32} />);
       case 'food':
-        return '🍕';
+        return (<Utensils size={32} />);
       case 'vehicles':
-        return '🚗';
+        return (<Car size={32} />);
       case 'fantasy':
-        return '🧙';
+        return (<Wand2 size={32} />);
       case 'buildings':
-        return '🏠';
+        return (<Building2 size={32} />);
       case 'sports':
-        return '🏀';
+        return (<Trophy size={32} />);
       default:
-        return '🎨';
+        return (<Shuffle size={32} />);
     }
   }
 
@@ -524,6 +526,7 @@ function App() {
           canSubmit={!myDrawing && timer > 0}
           submitted={!!myDrawing}
           timer={timer}
+          totalDuration={roundDuration}
           prompt={prompt}
           category={roundCategory}
           getCategoryIcon={getCategoryIcon}

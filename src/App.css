@@ -78,21 +78,83 @@ body {
 /* Professional barebones layout for drawing */
 .draw-grid {
   display: grid;
-  grid-template-columns: 260px 1fr 260px; /* symmetric side columns so canvas centers */
+  grid-template-columns: 260px 1fr 300px; /* tools / canvas / chat */
   gap: 16px;
   align-items: start;
 }
+.draw-grid .card + .card { margin-top: 0; }
 
 .tools, .chat-col { display: flex; flex-direction: column; gap: 8px; }
 .canvas-col { display: flex; flex-direction: column; gap: 8px; }
 .canvas-col > .canvas { width: 100%; }
+/* Make left and right cards match the canvas card height */
+.draw-grid > .card { align-self: stretch; height: 100%; display: flex; flex-direction: column; }
+.tools-rail { align-self: stretch; }
+.chat-col { height: 100%; }
+
+/* Top bar above canvas */
+.draw-topbar {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Canvas wrapper for mobile FAB */
+.canvas-wrap { position: relative; }
+.submit-fab { position: absolute; top: 8px; right: 8px; border-radius: 999px; padding: 10px 14px; }
+@media (min-width: 901px) { .submit-fab { display: none; } }
+@media (max-width: 900px) { .draw-topbar .right { display: none; } }
+
+/* Desktop vertical tools rail */
+.tools-rail { display: flex; flex-direction: column; gap: 8px; height: 100%; }
+.tools-rail .spacer { flex: 1 1 auto; }
+.tools-rail .btn, .tools-rail .input, .tools-rail .range { width: 100%; }
+.tools-rail .btn { min-height: 44px; }
+.tools-rail .btn.icon { display: inline-flex; align-items: center; justify-content: center; }
+/* Improve spacing inside tools card */
+.tools-rail > * { margin-bottom: 4px; }
+.tools-rail > *:last-child { margin-bottom: 0; }
+/* quit button moved to bottom action row */
+
+/* Mobile two-row tools grid */
+.tools-grid { display: none; }
+@media (max-width: 900px) {
+  .tools-rail { display: none; }
+  .tools-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .tools-grid .btn { min-height: 48px; }
+  .tools-grid .range { grid-column: span 2; align-self: center; }
+  .tools-grid .quit { grid-column: 4; }
+}
+.draw-topbar .left { justify-self: start; display: inline-flex; gap: 12px; align-items: center; }
+.draw-topbar .center { justify-self: center; font-weight: 600; }
+.draw-topbar .right { justify-self: end; }
+
+/* New: cleaner draw header */
+.prompt-title { font-size: clamp(20px, 3vw, 28px); font-weight: 600; line-height: 1.2; text-align: center; }
+.timer-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 10px; border-radius: 999px;
+  background: var(--primary); color: #fff; font-weight: 600;
+}
+.time-progress { width: 100%; height: 4px; background: var(--line); border-radius: 999px; overflow: hidden; }
+.time-progress .bar { height: 100%; background: var(--primary); transition: width 0.3s linear; }
+
+/* Larger category icon in header */
+.category-icon { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; }
+/* Compact card for category icon */
+.category-card { padding: 8px; display: inline-flex; align-items: center; justify-content: center; }
 
 @media (max-width: 1100px) {
-  .draw-grid { grid-template-columns: 200px 1fr 240px; }
+  .draw-grid { grid-template-columns: 200px 1fr 260px; }
 }
 
 @media (max-width: 900px) {
   .draw-grid { grid-template-columns: 1fr; }
+  .draw-topbar { grid-template-columns: 1fr auto; align-items: center; }
+  .draw-topbar .left { display: inline-flex; }
+  .draw-topbar .right { display: inline-flex; }
+  .draw-topbar .center { grid-column: 1 / -1; text-align: center; }
 }
 
 .label { font-size: 12px; color: var(--muted); }
@@ -246,7 +308,7 @@ body {
 .canvas {
   width: 100%;
   height: auto;
-  aspect-ratio: 16/9;
+  aspect-ratio: 4/3;
   background: #fff;
   border: 1px solid var(--line);
   border-radius: 4px;
@@ -254,9 +316,12 @@ body {
   touch-action: none;
 }
 
-.chat-messages { height: 320px; overflow: auto; padding: 8px; display: flex; flex-direction: column; gap: 6px; background: #fff; border: 1px solid var(--line); border-radius: 4px; }
-.chat-msg .chat-name { font-size: 12px; color: var(--muted); }
-.chat-msg .chat-bubble { display: inline-block; background: #f3f4f6; padding: 6px 8px; border-radius: 6px; max-width: 220px; }
+.chat-messages { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 8px; display: flex; flex-direction: column; gap: 6px; background: #fff; border: 1px solid var(--line); border-radius: 4px; font-size: 14px; line-height: 1.35; }
+.chat-msg .chat-name { font-size: 11px; color: var(--muted); }
+.chat-msg .chat-bubble { display: inline-block; background: #f3f4f6; padding: 5px 8px; border-radius: 6px; max-width: 220px; }
+@media (min-width: 900px) {
+  .chat-messages { font-size: 13px; }
+}
 .chat-msg.me { align-items: flex-end; }
 .chat-msg.me .chat-bubble { background: #e0f2fe; }
 
@@ -295,9 +360,17 @@ body {
 /* optional cursors retained (no heavy styling) */
 .cursor-brush { cursor: crosshair; }
 .cursor-bucket { cursor: pointer; }
+.cursor-pipette { cursor: copy; }
 
 /* Drawing canvas page spacing */
 .dc-root { padding: 24px; }
+
+/* Bottom action row for desktop */
+.draw-actions { display: none; margin-top: 8px; }
+@media (min-width: 901px) {
+  .draw-actions { display: flex; justify-content: center; gap: 12px; margin-left: auto; margin-right: auto; }
+  .draw-actions .btn { border-radius: 999px; padding: 12px 18px; min-width: 180px; }
+}
 
 /* Consistent headings spacing */
 h1, h2 { margin: 0 0 8px; }
@@ -311,4 +384,79 @@ h1, h2 { margin: 0 0 8px; }
   text-align: left;
   font-size: 12px;
   margin-top: 6px;
+}
+/* Fixed-size brush preview so layout stays static */
+.brush-preview {
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+}
+.brush-dot { display: inline-block; border-radius: 999px; }
+
+/* --- ColorPicker --- */
+.colorpicker { display: flex; flex-direction: column; gap: 8px; }
+.cp-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.cp-actions { display: inline-flex; align-items: center; gap: 8px; }
+.btn.small { padding: 8px 10px; font-size: 12px; }
+.cp-chip { width: 28px; height: 28px; border-radius: 999px; border: 1px solid var(--line); }
+.cp-swatches { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+@media (max-width: 900px) { .cp-swatches { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
+.cp-swatch { width: 100%; aspect-ratio: 1/1; border-radius: 8px; border: 1px solid var(--line); padding: 0; }
+.cp-swatch.selected { outline: 2px solid var(--primary); outline-offset: 1px; }
+.cp-swatch-indicator { display: block; width: 8px; height: 8px; border-radius: 999px; border: 1px solid rgba(0,0,0,0.2); background: rgba(255,255,255,0.9); margin: 6px; }
+/* Removed advanced custom picker styles */
+/* --- Mobile compact vertical stack for drawing view --- */
+@media (max-width: 900px) {
+  /* Overall spacing */
+  .page { padding: 12px; gap: 12px; }
+  .dc-root { padding: 12px; }
+
+  /* Single column grid, tighter gaps */
+  .draw-grid { grid-template-columns: 1fr; gap: 10px; }
+  /* Ensure desktop rail never shows on mobile (override .draw-grid > .card) */
+  .draw-grid > .tools-rail,
+  .draw-grid > .card.tools-rail,
+  .tools-rail { display: none !important; }
+
+  /* Compact header */
+  .draw-topbar { grid-template-columns: 1fr auto; gap: 6px; }
+  .prompt-title { font-size: clamp(18px, 5vw, 22px); }
+
+  /* Hide floating FAB; use bottom CTA instead */
+  .submit-fab { display: none; }
+
+  /* Tools: compact non-sticky grid after canvas */
+  .tools-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+    padding: 8px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--card);
+  }
+  .tools-grid .btn { min-height: 40px; }
+  /* Slider full-width row */
+  .tools-grid .range { grid-column: 1 / -1; align-self: center; }
+
+  /* Chat spacing */
+  .chat-messages { padding: 6px; gap: 4px; font-size: 13px; }
+  .chat-msg .chat-name { font-size: 10px; }
+  .chat-msg .chat-bubble { padding: 4px 7px; max-width: 85vw; }
+
+  /* Show bottom CTA row on mobile */
+  .draw-actions {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-left: auto;
+    margin-right: auto;
+    margin-top: 8px;
+  }
+  .draw-actions .btn { min-width: 140px; padding: 10px 14px; border-radius: 999px; }
 }
