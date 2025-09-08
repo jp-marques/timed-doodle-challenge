@@ -29,8 +29,18 @@ export function MenuView({
 
           <div style={{ marginTop: 24 }}>
             {/* <div className="label" style={{ marginBottom: 8 }}>Nickname</div> */}
-            <input className="input" placeholder="Enter your nickname" value={nickname} onChange={onNicknameChange} maxLength={15} />
-            {nicknameError && <div className="error">{nicknameError}</div>}
+            <input
+              className="input"
+              placeholder="Enter your nickname"
+              value={nickname}
+              onChange={onNicknameChange}
+              maxLength={15}
+              aria-invalid={!!nicknameError}
+              aria-describedby={nicknameError ? 'nickname-error' : undefined}
+            />
+            {nicknameError && (
+              <div id="nickname-error" className="error">{nicknameError}</div>
+            )}
           </div>
 
           <div className="cta-row stack" style={{ marginTop: 24 }}>
