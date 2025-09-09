@@ -322,16 +322,16 @@ export default function DrawingCanvas(props: DrawingCanvasProps) {
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatMessages]);
-  // Update last seen baseline whenever chat becomes visible (desktop or drawer open)
+  // Update last seen baseline whenever chat becomes visible (desktop, drawer, or expanded mobile panel)
   useEffect(() => {
-    const chatVisible = !compact || chatOpen;
+    const chatVisible = !compact || chatOpen || (isMobile && !chatCollapsed);
     if (chatVisible) {
       setLastSeenIndex(chatMessages.length);
     }
-  }, [compact, chatOpen, chatMessages.length]);
+  }, [compact, chatOpen, chatMessages.length, isMobile, chatCollapsed]);
   // Derived unread count based on messages since last seen
   const unreadCount = React.useMemo(() => {
-    if (!compact || chatOpen) return 0;
+    if (!compact || chatOpen || (isMobile && !chatCollapsed)) return 0;
     if (!Array.isArray(chatMessages)) return 0;
     const slice = chatMessages.slice(Math.max(0, Math.min(lastSeenIndex, chatMessages.length)));
     let count = 0;
@@ -339,7 +339,7 @@ export default function DrawingCanvas(props: DrawingCanvasProps) {
       if (msg && !msg.isSystem && (!myId || msg.id !== myId)) count++;
     }
     return count;
-  }, [chatMessages, lastSeenIndex, myId, compact, chatOpen]);
+  }, [chatMessages, lastSeenIndex, myId, compact, chatOpen, isMobile, chatCollapsed]);
   useEffect(() => {
     // Default to collapsed on small screens to save space
     try {
@@ -374,7 +374,7 @@ export default function DrawingCanvas(props: DrawingCanvasProps) {
           </div>
         </div>
         <div className="flex items-center gap-2 justify-self-end">
-          {compact && (
+          {compact && !isMobile && (
             <button
               className="btn icon tab-toggle relative"
               style={{ borderRadius: '12px', background: '#fff' }}
@@ -501,7 +501,7 @@ export default function DrawingCanvas(props: DrawingCanvasProps) {
           </div>
         </div>
 
-        {/* Chat */}
+        {/* Chat (desktop / small-desktop column) */}
         <div className="order-3 md:col-span-3 flex min-w-0 hide-in-compact">
           <div className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm w-full flex flex-col gap-2 min-w-0 overflow-hidden">
             {/* Header with mobile collapse toggle */}
@@ -534,6 +534,59 @@ export default function DrawingCanvas(props: DrawingCanvasProps) {
             </div>
             <form
               className={`${chatCollapsed ? 'hidden md:flex' : 'flex'} gap-2 min-w-0`}
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleSendChat();
+              }}
+            >
+              <input
+                className="input flex-1 min-w-0 w-0"
+                type="text"
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                placeholder="Type a message..."
+                aria-label="Chat message"
+                maxLength={120}
+                disabled={!myId}
+                autoComplete="off"
+              />
+              <button type="submit" className="btn primary small shrink-0" disabled={!chatInput.trim() || !myId}>Send</button>
+            </form>
+          </div>
+        </div>
+
+        {/* Chat (mobile stacked, collapsible) */}
+        <div className="order-3 md:hidden">
+          <div className="card w-full flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <div className="text-sm text-slate-600">Chat</div>
+              <button
+                type="button"
+                className="inline-flex items-center justify-center rounded p-1 text-slate-600 hover:text-slate-800"
+                aria-label={chatCollapsed ? 'Expand chat' : 'Collapse chat'}
+                aria-expanded={!chatCollapsed}
+                aria-controls="chat-content-mobile"
+                onClick={() => setChatCollapsed((v) => !v)}
+              >
+                <ChevronDown size={18} className={`transition-transform duration-200 ${chatCollapsed ? '' : 'rotate-180'}`} />
+              </button>
+            </div>
+            <div id="chat-content-mobile" className={`${chatCollapsed ? 'hidden' : ''} overflow-auto p-2 flex flex-col gap-1 rounded-md bg-slate-50 max-h-48`}>
+              {chatMessages.length === 0 && <div className="text-slate-400 text-center text-sm">No messages yet</div>}
+              {chatMessages.map((msg, i) =>
+                msg.isSystem ? (
+                  <div key={i} className="text-slate-400 text-center text-xs py-1">{msg.text}</div>
+                ) : (
+                  <div key={i} className={`flex flex-col ${msg.id === myId ? 'items-end' : 'items-start'}`}>
+                    <div className="text-[11px] text-slate-400">{msg.nickname}</div>
+                    <div className={`inline-block rounded-md px-2 py-1 text-[13px] max-w-[240px] ${msg.id === myId ? 'bg-sky-100' : 'bg-slate-100'}`}>{msg.text}</div>
+                  </div>
+                )
+              )}
+              <div ref={chatEndRef} />
+            </div>
+            <form
+              className={`${chatCollapsed ? 'hidden' : 'flex'} gap-2 min-w-0`}
               onSubmit={(e) => {
                 e.preventDefault();
                 handleSendChat();
@@ -638,7 +691,6 @@ export default function DrawingCanvas(props: DrawingCanvasProps) {
     </div>
   );
 }
-
 
 
 
