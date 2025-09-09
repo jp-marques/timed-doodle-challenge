@@ -1,4 +1,4 @@
-import ResultsGrid from '../../components/ResultsGrid';
+import ResultsGrid from './components/ResultsGrid';
 import type { Player } from '../../types';
 import { useState } from 'react';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
@@ -51,5 +51,4 @@ export function ResultsView({
     </div>
   );
 }
-
 
