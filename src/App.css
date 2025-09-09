@@ -15,6 +15,9 @@
   --danger: #ef4444;
   --success: #10b981;
   --radius: 14px;
+  /* UI sizes */
+  --cp-swatch-size: 54px; /* desktop swatches */
+  --cp-gap: 10px; /* swatch gap */
 }
 
 html, body, #root {
@@ -87,6 +90,9 @@ body {
 .tools, .chat-col { display: flex; flex-direction: column; gap: 8px; }
 .canvas-col { display: flex; flex-direction: column; gap: 8px; }
 .canvas-col > .canvas { width: 100%; }
+/* Make canvas column visually flat (no outer card chrome) to reclaim space */
+.card.canvas-col { padding: 0; border: 0; background: transparent; }
+/* Canvas uses default smoothing for better quality when scaled */
 /* Make left and right cards match the canvas card height */
 .draw-grid > .card { align-self: stretch; height: 100%; display: flex; flex-direction: column; }
 .tools-rail { align-self: stretch; }
@@ -106,15 +112,23 @@ body {
 @media (min-width: 901px) { .submit-fab { display: none; } }
 @media (max-width: 900px) { .draw-topbar .right { display: none; } }
 
-/* Desktop vertical tools rail */
-.tools-rail { display: flex; flex-direction: column; gap: 8px; height: 100%; }
-.tools-rail .spacer { flex: 1 1 auto; }
-.tools-rail .btn, .tools-rail .input, .tools-rail .range { width: 100%; }
-.tools-rail .btn { min-height: 44px; }
-.tools-rail .btn.icon { display: inline-flex; align-items: center; justify-content: center; }
+/* Desktop tools rail: compact grid to avoid overflow */
+.tools-rail { height: 100%; }
+@media (min-width: 901px) {
+  .tools-rail { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; align-content: start; }
+  .tools-rail .btn, .tools-rail .input, .tools-rail .range { width: 100%; }
+  .tools-rail .btn { min-height: 44px; }
+  .tools-rail .btn.icon { display: inline-flex; align-items: center; justify-content: center; }
+  /* Make larger elements span full width */
+  .tools-rail .colorpicker,
+  .tools-rail .range,
+  .tools-rail .row { grid-column: 1 / -1; }
+}
 /* Improve spacing inside tools card */
-.tools-rail > * { margin-bottom: 4px; }
+.tools-rail > * { margin-bottom: 2px; }
 .tools-rail > *:last-child { margin-bottom: 0; }
+/* Slightly tighter padding on the tools card to save vertical space */
+.card.tools-rail { padding: 12px; }
 /* quit button moved to bottom action row */
 
 /* Mobile two-row tools grid */
@@ -157,6 +171,22 @@ body {
   .draw-topbar .center { grid-column: 1 / -1; text-align: center; }
 }
 
+/* --- Short viewport optimizations (e.g., 1280x720 laptops) --- */
+@media (min-width: 901px) and (max-height: 760px) {
+  /* Reduce outer paddings and vertical gaps to avoid page scroll */
+  .page { padding: 16px; gap: 12px; }
+  .dc-root { padding: 12px; padding-bottom: 72px; }
+  .section + .section { margin-top: 8px; }
+  .draw-topbar { gap: 6px; }
+  .prompt-title { font-size: clamp(18px, 2.6vw, 24px); }
+  .category-icon { width: 28px; height: 28px; }
+  /* Constrain canvas width so 4:3 height fits within viewport
+     Allow ~280px for header, paddings, and fixed action bar. */
+  .canvas { width: min(100%, calc((100vh - 280px) * 4 / 3)); }
+  /* Slightly narrower buttons to reduce action bar height */
+  .draw-actions .btn { min-width: 150px; padding: 10px 14px; }
+}
+
 .label { font-size: 12px; color: var(--muted); }
 
 .input, .range, select {
@@ -197,9 +227,12 @@ body {
 /* --- Hero layout (menu/host/join) --- */
 .container { width: 100%; max-width: 1120px; margin: 0 auto; }
 .hero { display: grid; gap: 16px; justify-items: center; text-align: center; }
-.hero h1 { font-size: clamp(40px, 6vw, 56px); line-height: 1.05; margin: 0; }
+.hero h1 { font-size: clamp(40px, 6vw, 56px); line-height: 1.05; margin: 0; font-weight: 700; }
 .subhead { color: var(--muted); line-height: 1.6; margin: 8px 0 12px; max-width: 72ch; }
 .meta-row { color: var(--muted); font-size: 14px; }
+.panel h2 { font-weight: 700; }
+/* Larger page section headers like Results, Join */
+.panel > h2 { font-size: clamp(24px, 3.5vw, 32px); }
 .chips { display: flex; gap: 8px; flex-wrap: wrap; }
 .chip { display: inline-flex; align-items: center; gap: 8px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); font-size: 14px; color: var(--text); }
 .cta-row { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
@@ -311,9 +344,14 @@ body {
   aspect-ratio: 4/3;
   background: #fff;
   border: 1px solid var(--line);
-  border-radius: 4px;
+  border-radius: var(--radius); /* Match card rounding */
   display: block;
   touch-action: none;
+}
+/* Desktop: cap canvas width so 4:3 height fits in viewport without page scroll.
+   ~260px accounts for topbar, paddings, and fixed action bar. */
+@media (min-width: 901px) {
+  .canvas-col .canvas { width: min(100%, calc((100svh - 300px) * 4 / 3)); }
 }
 
 .chat-messages { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 8px; display: flex; flex-direction: column; gap: 6px; background: #fff; border: 1px solid var(--line); border-radius: 4px; font-size: 14px; line-height: 1.35; }
@@ -363,14 +401,33 @@ body {
 .cursor-pipette { cursor: copy; }
 
 /* Drawing canvas page spacing */
-.dc-root { padding: 24px; }
+.dc-root { padding: 24px; /* Reserve space for fixed action bar */ padding-bottom: 96px; }
+@media (min-width: 901px) {
+  /* On desktop/laptops, avoid extra bottom padding so page doesn't need to scroll */
+  .dc-root { padding-bottom: 24px; }
+}
 
 /* Bottom action row for desktop */
-.draw-actions { display: none; margin-top: 8px; }
-@media (min-width: 901px) {
-  .draw-actions { display: flex; justify-content: center; gap: 12px; margin-left: auto; margin-right: auto; }
-  .draw-actions .btn { border-radius: 999px; padding: 12px 18px; min-width: 180px; }
+/* Fixed, safe-area-aware bottom action bar for drawing */
+.draw-actions {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  /* Comfortable touch padding + safe-area for iOS */
+  padding: 8px 12px;
+  padding-bottom: calc(12px + env(safe-area-inset-bottom));
+  /* Subtle frosted backdrop similar to lobby */
+  background: linear-gradient(180deg, rgba(252,252,252,0.0), rgba(252,252,252,0.7) 40%, rgba(252,252,252,0.95) 100%);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-top: 1px solid var(--line);
+  z-index: 10;
 }
+.draw-actions .btn { border-radius: 999px; padding: 12px 18px; min-height: 44px; min-width: 160px; }
 
 /* Consistent headings spacing */
 h1, h2 { margin: 0 0 8px; }
@@ -398,23 +455,50 @@ h1, h2 { margin: 0 0 8px; }
 }
 .brush-dot { display: inline-block; border-radius: 999px; }
 
+/* Desktop/laptop: keep side columns within viewport height and allow internal scroll */
+@media (min-width: 901px) {
+  .draw-grid > .card { max-height: calc(100svh - 300px); }
+  /* Tools rail should fit without scrolling after compact swatches */
+  .tools-rail { overflow: visible; }
+  .chat-col { display: flex; flex-direction: column; }
+}
+
 /* --- ColorPicker --- */
 .colorpicker { display: flex; flex-direction: column; gap: 8px; }
 .cp-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .cp-actions { display: inline-flex; align-items: center; gap: 8px; }
 .btn.small { padding: 8px 10px; font-size: 12px; }
 .cp-chip { width: 28px; height: 28px; border-radius: 999px; border: 1px solid var(--line); }
-.cp-swatches { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
-@media (max-width: 900px) { .cp-swatches { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
-.cp-swatch { width: 100%; aspect-ratio: 1/1; border-radius: 8px; border: 1px solid var(--line); padding: 0; }
-.cp-swatch.selected { outline: 2px solid var(--primary); outline-offset: 1px; }
-.cp-swatch-indicator { display: block; width: 8px; height: 8px; border-radius: 999px; border: 1px solid rgba(0,0,0,0.2); background: rgba(255,255,255,0.9); margin: 6px; }
+.cp-swatches {
+  display: grid;
+  grid-template-columns: repeat(5, var(--cp-swatch-size));
+  gap: var(--cp-gap);
+  /* Exact 5-column block width with uniform gaps */
+  width: min(100%, calc(5 * var(--cp-swatch-size) + 4 * var(--cp-gap)));
+  justify-content: start;
+  margin: 0 auto; /* center the block in the card */
+}
+@media (max-width: 900px) {
+  .cp-swatches {
+    --cp-swatch-size: 48px;
+    --cp-gap: 8px;
+    grid-template-columns: repeat(5, var(--cp-swatch-size));
+    width: min(100%, calc(5 * var(--cp-swatch-size) + 4 * var(--cp-gap)));
+    justify-content: center;
+    margin-left: auto;
+    margin-right: auto;
+  }
+}
+.cp-swatch { width: var(--cp-swatch-size); height: var(--cp-swatch-size); border-radius: 999px; border: 1px solid var(--line); padding: 0; display: grid; place-items: center; box-sizing: border-box; }
+.cp-swatch.selected { outline: none; box-shadow: 0 0 0 3px var(--primary); }
+.cp-swatch:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--ring); }
 /* Removed advanced custom picker styles */
 /* --- Mobile compact vertical stack for drawing view --- */
 @media (max-width: 900px) {
   /* Overall spacing */
   .page { padding: 12px; gap: 12px; }
-  .dc-root { padding: 12px; }
+  /* Reserve space for fixed action bar on mobile too */
+  .dc-root { padding: 12px; padding-bottom: 96px; }
 
   /* Single column grid, tighter gaps */
   .draw-grid { grid-template-columns: 1fr; gap: 10px; }
@@ -440,7 +524,8 @@ h1, h2 { margin: 0 0 8px; }
     border-radius: 12px;
     background: var(--card);
   }
-  .tools-grid .btn { min-height: 40px; }
+  /* Meet 44px tap target on mobile */
+  .tools-grid .btn { min-height: 44px; }
   /* Slider full-width row */
   .tools-grid .range { grid-column: 1 / -1; align-self: center; }
 
@@ -449,14 +534,6 @@ h1, h2 { margin: 0 0 8px; }
   .chat-msg .chat-name { font-size: 10px; }
   .chat-msg .chat-bubble { padding: 4px 7px; max-width: 85vw; }
 
-  /* Show bottom CTA row on mobile */
-  .draw-actions {
-    display: flex;
-    justify-content: center;
-    gap: 10px;
-    margin-left: auto;
-    margin-right: auto;
-    margin-top: 8px;
-  }
-  .draw-actions .btn { min-width: 140px; padding: 10px 14px; border-radius: 999px; }
+  /* Buttons already styled above; keep widths reasonable on narrow screens */
+  .draw-actions .btn { min-width: 140px; }
 }

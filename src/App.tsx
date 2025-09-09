@@ -23,6 +23,7 @@ function App() {
   const [players, setPlayers] = useState<Player[]>([]);
   const [prompt, setPrompt] = useState('');
   const [timer, setTimer] = useState(60);
+  const [endsAtMs, setEndsAtMs] = useState<number | null>(null);
   const [roundDuration, setRoundDuration] = useState(60); // Round duration setting for hosts
   const [drawings, setDrawings] = useState<Record<string, string>>({});
   const [isHost, setIsHost] = useState(false);
@@ -102,6 +103,7 @@ function App() {
     setPlayers([]);
     setIsHost(false);
     setHostId(null);
+    setEndsAtMs(null);
     setChatMessages([]); // Clear chat messages when leaving room
   }, [roomCode]);
 
@@ -110,9 +112,30 @@ function App() {
   // Submit current canvas drawing to server
   const handleSubmitDrawing = useCallback(() => {
     if (!canvasRef.current || !socketRef.current || !roomCode) return;
-    const dataUrl = canvasRef.current.toDataURL('image/webp', 0.9);
-    setMyDrawing(dataUrl);
-    socketRef.current.emit('submit-drawing', { code: roomCode, drawing: dataUrl });
+    try {
+      const src = canvasRef.current;
+      // Downscale to a fixed 4:3 export to keep size within server limits
+      const EXPORT_W = 800;
+      const EXPORT_H = 600;
+      const off = document.createElement('canvas');
+      off.width = EXPORT_W;
+      off.height = EXPORT_H;
+      const ctx = off.getContext('2d');
+      if (!ctx) return;
+      ctx.imageSmoothingEnabled = true;
+      try { (ctx as any).imageSmoothingQuality = 'high'; } catch {}
+      ctx.clearRect(0, 0, EXPORT_W, EXPORT_H);
+      // Draw whole source onto target with scaling
+      ctx.drawImage(src, 0, 0, src.width, src.height, 0, 0, EXPORT_W, EXPORT_H);
+      const dataUrl = off.toDataURL('image/webp', 0.8);
+      setMyDrawing(dataUrl);
+      socketRef.current.emit('submit-drawing', { code: roomCode, drawing: dataUrl });
+    } catch (err) {
+      // Fallback: send whatever is on the main canvas
+      const dataUrl = canvasRef.current.toDataURL('image/webp', 0.8);
+      setMyDrawing(dataUrl);
+      socketRef.current.emit('submit-drawing', { code: roomCode, drawing: dataUrl });
+    }
   }, [roomCode]);
 
   /* --------------- Auto rejoin on connect -------------- */
@@ -181,14 +204,19 @@ function App() {
       prompt,
       duration,
       category,
+      endsAt,
     }: {
       prompt: string;
       duration: number;
       category?: string;
+      endsAt?: number;
     }) {
       setPrompt(prompt);
       setRoundCategory(category || null);
-      setTimer(duration);
+      const serverEnds = typeof endsAt === 'number' ? endsAt : (Date.now() + duration * 1000);
+      setEndsAtMs(serverEnds);
+      const remainingNow = Math.max(0, Math.ceil((serverEnds - Date.now()) / 1000));
+      setTimer(remainingNow);
       setMyDrawing(null);
       setView('draw');
       
@@ -203,8 +231,10 @@ function App() {
       setChatMessages((prev) => [...prev, systemMessage]);
       
       if (canvasRef.current) {
-        const ctx = canvasRef.current.getContext('2d');
-        ctx?.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+        const vis = canvasRef.current;
+        const ctx = vis.getContext('2d');
+        ctx?.clearRect(0, 0, vis.width, vis.height);
+        // visible canvas is the drawing surface; nothing else to clear
       }
     }
 
@@ -212,6 +242,7 @@ function App() {
       // Guard against race: if user has left the room, ignore stale round-end
       if (!roomCode) return;
       setDrawings(drawings);
+      setEndsAtMs(null);
       setView('results');
     }
 
@@ -242,17 +273,31 @@ function App() {
   /* --------------- Timer effect ----------------------- */
   useEffect(() => {
     if (view !== 'draw') return;
-    const interval = window.setInterval(() => {
-      setTimer((t) => {
-        const newTime = t - 1;
-        if (newTime <= 0) {
+    // Prefer server-authoritative endsAt when available to avoid drift
+    if (endsAtMs) {
+      const interval = window.setInterval(() => {
+        const remaining = Math.max(0, Math.ceil((endsAtMs - Date.now()) / 1000));
+        setTimer(remaining);
+        if (remaining <= 0) {
+          window.clearInterval(interval);
           if (!myDrawing) handleSubmitDrawing();
         }
-        return newTime;
-      });
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [view, handleSubmitDrawing, myDrawing]);
+      }, 1000);
+      return () => window.clearInterval(interval);
+    } else {
+      // Fallback to local countdown if endsAt is missing
+      const interval = window.setInterval(() => {
+        setTimer((t) => {
+          const newTime = t - 1;
+          if (newTime <= 0) {
+            if (!myDrawing) handleSubmitDrawing();
+          }
+          return newTime;
+        });
+      }, 1000);
+      return () => window.clearInterval(interval);
+    }
+  }, [view, endsAtMs, handleSubmitDrawing, myDrawing]);
 
   /* --------------- Validation helpers ---------------- */
   // Imported from lib/validation
@@ -396,8 +441,10 @@ function App() {
 
   const handleClearCanvas = () => {
     if (canvasRef.current) {
-      const ctx = canvasRef.current.getContext('2d');
-      ctx?.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+      const vis = canvasRef.current;
+      const ctx = vis.getContext('2d');
+      ctx?.clearRect(0, 0, vis.width, vis.height);
+      // visible canvas is the drawing surface; nothing else to clear
     }
     setMyDrawing(null);
   };

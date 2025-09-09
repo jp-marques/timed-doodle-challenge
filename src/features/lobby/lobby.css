@@ -1,6 +1,7 @@
 /* Scoped styles for LobbyView */
 
 .lobby-header { text-align: center; margin: 0 auto; max-width: 640px; }
+.lobby-header h1 { font-weight: 700; font-size: clamp(24px, 3.5vw, 32px); line-height: 1.1; }
 .lobby-subhead { color: var(--muted); margin-top: 4px; }
 .lobby-code { margin-top: 8px; display: flex; gap: 8px; justify-content: center; }
 
