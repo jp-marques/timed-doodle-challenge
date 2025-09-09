@@ -19,14 +19,12 @@ export function JoinView({
   const isNicknameInvalid = !!validateNickname(nickname);
   const isCodeInvalid = inputCode.trim().length !== 5;
   return (
-    <div className="panel small" style={{ textAlign: 'center' }}>
-      <h2>Join Room</h2>
-      <div className="muted">
+    <div className="w-full max-w-[560px] mx-auto text-center">
+      <h2 className="text-[clamp(24px,3.5vw,32px)] font-bold mb-2">Join Room</h2>
+      <div className="text-slate-500">
         Playing as: <b>{nickname}</b>
       </div>
-      <div className="label" style={{ marginBottom: 8 }}>
-        Room code
-      </div>
+      <div className="label mb-2 mt-4">Room code</div>
       <input
         className="input"
         placeholder="ABCDE"
@@ -35,7 +33,7 @@ export function JoinView({
         maxLength={5}
       />
       {joinError && <div className="error">{joinError}</div>}
-      <div className="row" style={{ justifyContent: 'center', marginTop: 8, flexWrap: 'wrap' }}>
+      <div className="flex justify-center gap-2 flex-wrap mt-2">
         <button className="btn primary" onClick={onJoin} disabled={isNicknameInvalid || isCodeInvalid} aria-disabled={isNicknameInvalid || isCodeInvalid}>
           Join
         </button>
@@ -46,5 +44,4 @@ export function JoinView({
     </div>
   );
 }
-
 

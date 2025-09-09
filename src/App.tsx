@@ -6,11 +6,12 @@ import { MenuView } from './features/menu/MenuView';
 import { JoinView } from './features/join/JoinView';
 import { LobbyView } from './features/lobby/LobbyView';
 import { ResultsView } from './features/results/ResultsView';
-import type { Player, ChatMessage, LobbyUpdate, SettingsUpdate } from './types';
 import { validateNickname, validateRoundDuration } from './lib/validation';
 import { Events } from './lib/constants/events';
 import { getCategoryIcon } from './lib/category';
 import { useSocket } from './lib/useSocket';
+import { useGameStore } from './stores/game';
+import { useGameSocket } from './lib/useGameSocket';
 
 /* ─────────────────────────────────────────────────── */
 /*                    Component                       */
@@ -20,25 +21,25 @@ function App() {
   const location = useLocation();
   /* --------------- Global / lobby state --------------- */
   const [view, setView] = useState<'menu' | 'join' | 'lobby' | 'draw' | 'results'>('menu');
-  const [roomCode, setRoomCode] = useState('');
-  const [inputCode, setInputCode] = useState('');
-  const [nickname, setNickname] = useState('');
-  const [players, setPlayers] = useState<Player[]>([]);
-  const [prompt, setPrompt] = useState('');
+  const roomCode = useGameStore((s) => s.roomCode);
+  const setRoomCode = useGameStore((s) => s.setRoomCode);
+  const inputCode = useGameStore((s) => s.inputCode);
+  const setInputCode = useGameStore((s) => s.setInputCode);
+  const nickname = useGameStore((s) => s.nickname);
+  const setNickname = useGameStore((s) => s.setNickname);
+  const players = useGameStore((s) => s.players);
+  const prompt = useGameStore((s) => s.prompt);
   const [timer, setTimer] = useState(60);
-  const [endsAtMs, setEndsAtMs] = useState<number | null>(null);
-  const [roundDuration, setRoundDuration] = useState(60); // Round duration setting for hosts
-  const [drawings, setDrawings] = useState<Record<string, string>>({});
-  // Host status is derived from ids; no legacy state needed.
-  // Lobby preference; null means Random
-  const [category, setCategory] = useState<string | null>(null);
-  // Active round category (for the drawing screen)
-  const [roundCategory, setRoundCategory] = useState<string | null>(null);
+  const endsAtMs = useGameStore((s) => s.endsAtMs);
+  const roundDuration = useGameStore((s) => s.roundDuration);
+  const drawings = useGameStore((s) => s.drawings);
+  const category = useGameStore((s) => s.category);
+  const roundCategory = useGameStore((s) => s.roundCategory);
   const [loading, setLoading] = useState(false);
-  const [isConnected, setIsConnected] = useState(false);
-  const [hostId, setHostId] = useState<string | null>(null);
-  const [myId, setMyId] = useState<string | null>(null);
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const isConnected = useGameStore((s) => s.isConnected);
+  const hostId = useGameStore((s) => s.hostId);
+  const myId = useGameStore((s) => s.myId);
+  const toastMessage = useGameStore((s) => s.toastMessage);
 
   /* --------------- Canvas / drawing state ------------- */
   const canvasRef = useRef<HTMLCanvasElement>(null) as React.RefObject<HTMLCanvasElement>;
@@ -52,41 +53,24 @@ function App() {
   /* --------------- Socket ----------------------------- */
   const socketRef = useSocket();
 
-  // Track socket connection status for UI badge
-  useEffect(() => {
-    const socket = socketRef.current;
-    if (!socket) return;
-    // Initialize current state
-    setIsConnected(socket.connected);
-    const onConnect = () => setIsConnected(true);
-    const onDisconnect = () => setIsConnected(false);
-    socket.on('connect', onConnect);
-    socket.on('disconnect', onDisconnect);
-    return () => {
-      socket.off('connect', onConnect);
-      socket.off('disconnect', onDisconnect);
-    };
-  }, [socketRef]);
-
   /* --------------- Chat state ------------------------- */
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const chatMessages = useGameStore((s) => s.chatMessages);
   const [chatInput, setChatInput] = useState('');
 
-  // Reflect socket connection status in UI
+  // Bind socket -> store
+  useGameSocket(socketRef);
+
+  // Drive view changes from store state (server-authoritative)
   useEffect(() => {
-    const socket = socketRef.current;
-    if (!socket) return;
-    const update = () => setIsConnected(!!socket.connected);
-    update();
-    const onConnect = () => setIsConnected(true);
-    const onDisconnect = () => setIsConnected(false);
-    socket.on('connect', onConnect);
-    socket.on('disconnect', onDisconnect);
-    return () => {
-      socket.off('connect', onConnect);
-      socket.off('disconnect', onDisconnect);
-    };
-  }, [socketRef]);
+    if (roomCode && endsAtMs) {
+      setView('draw');
+    }
+  }, [roomCode, endsAtMs]);
+  useEffect(() => {
+    if (roomCode && !endsAtMs && drawings && Object.keys(drawings).length > 0) {
+      setView('results');
+    }
+  }, [roomCode, endsAtMs, drawings]);
 
   /* --------------- Navigation ------------------------- */
   // Navigation + guards
@@ -133,15 +117,11 @@ function App() {
     setView('menu');
     setRoomCode('');
     setInputCode('');
-    setPrompt('');
     setTimer(60);
-    setRoundDuration(60);
-    setDrawings({});
+    // roundDuration stays as last setting until host changes it
+    // drawings cleared by store.clearPerRoomState
     setMyDrawing(null);
-    setPlayers([]);
-    setHostId(null);
-    setEndsAtMs(null);
-    setChatMessages([]); // Clear chat messages when leaving room
+    useGameStore.getState().clearPerRoomState();
   }, [roomCode]);
 
   // Socket lifecycle is handled by useSocket
@@ -160,7 +140,7 @@ function App() {
       const ctx = off.getContext('2d');
       if (!ctx) return;
       ctx.imageSmoothingEnabled = true;
-      ctx.imageSmoothingQuality = 'high';
+      try { (ctx as any).imageSmoothingQuality = 'high'; } catch {}
       ctx.clearRect(0, 0, EXPORT_W, EXPORT_H);
       // Draw whole source onto target with scaling
       ctx.drawImage(src, 0, 0, src.width, src.height, 0, 0, EXPORT_W, EXPORT_H);
@@ -175,149 +155,9 @@ function App() {
     }
   }, [roomCode]);
 
-  /* --------------- Auto rejoin on connect -------------- */
-  useEffect(() => {
-    const socket = socketRef.current;
-    if (!socket) return;
+  // Auto rejoin handled in useGameSocket
 
-    const tryRejoin = () => {
-      try {
-        const raw = sessionStorage.getItem('td.session');
-        if (!raw) return;
-        const session = JSON.parse(raw) as { code: string; myId: string; nickname: string; token: string; isHost: boolean };
-        if (!session?.code || !session?.myId || !session?.token) return;
-        socket.emit(Events.RejoinRoom, { code: session.code.trim().toUpperCase(), playerId: session.myId, token: session.token, nickname: session.nickname }, (res: { ok: boolean; myId?: string; hostId?: string; error?: string } & Record<string, unknown>) => {
-          if (!res?.ok) {
-            try { sessionStorage.removeItem('td.session'); } catch (err) { void err; }
-            return;
-          }
-          const normalized = session.code.trim().toUpperCase();
-          if (roomCode !== normalized) setRoomCode(normalized);
-          {
-            const respMyId = (res.myId as string | undefined)
-              ?? (res.playerId as string | undefined)
-              ?? session.myId;
-            setMyId(respMyId || session.myId);
-          }
-          // Keep current UI state; do not clear chat or force view.
-        });
-      } catch (err) { void err; }
-    };
-
-    // Always rejoin on connect if a session exists (non-destructive)
-    if (socket.connected) tryRejoin();
-    socket.on('connect', tryRejoin);
-    return () => {
-      socket.off('connect', tryRejoin);
-    };
-  }, [socketRef, roomCode]);
-
-  /* --------------- Socket event listeners ------------- */
-  useEffect(() => {
-    const socket = socketRef.current;
-    if (!socket) return;
-
-    function onLobbyUpdate(update: LobbyUpdate) {
-      let nextPlayers: Player[] = players;
-      let nextHostId: string | null = hostId;
-      if (Array.isArray(update)) {
-        nextPlayers = update as unknown as Player[];
-        nextHostId = update[0]?.id ?? null; // fallback for backwards compatibility
-      } else {
-        nextPlayers = update.players;
-        nextHostId = update.hostId;
-      }
-
-      // Detect host change and show toast with new host nickname
-      if (hostId && nextHostId && nextHostId !== hostId) {
-        const newHost = nextPlayers.find(p => p.id === nextHostId);
-        const name = newHost?.nickname || 'Unknown';
-        setToastMessage(`New host: ${name}`);
-        // Auto-hide after 3 seconds
-        window.setTimeout(() => setToastMessage(null), 3000);
-      }
-
-      // Fallback: if myId is still unknown (e.g., older prod ACKs),
-      // derive it from nickname. The server enforces unique nicknames per room.
-      if (!myId && nickname && nextPlayers.length > 0) {
-        const targetName = nickname.trim().toLowerCase();
-        const self = nextPlayers.find(p => p.nickname.trim().toLowerCase() === targetName);
-        if (self?.id) setMyId(self.id);
-      }
-
-      setPlayers(nextPlayers);
-      setHostId(nextHostId);
-    }
-
-    function onRoundStart({
-      prompt,
-      duration,
-      category,
-      endsAt,
-    }: {
-      prompt: string;
-      duration: number;
-      category?: string;
-      endsAt?: number;
-    }) {
-      setPrompt(prompt);
-      setRoundCategory(category || null);
-      const serverEnds = typeof endsAt === 'number' ? endsAt : (Date.now() + duration * 1000);
-      setEndsAtMs(serverEnds);
-      const remainingNow = Math.max(0, Math.ceil((serverEnds - Date.now()) / 1000));
-      setTimer(remainingNow);
-      setMyDrawing(null);
-      setView('draw');
-      
-      // Add system message with the prompt
-      const systemMessage: ChatMessage = {
-        id: 'system',
-        nickname: 'System',
-        text: `New round started! Draw: ${prompt}`,
-        time: Date.now(),
-        isSystem: true,
-      };
-      setChatMessages((prev) => [...prev, systemMessage]);
-      
-      if (canvasRef.current) {
-        const vis = canvasRef.current;
-        const ctx = vis.getContext('2d');
-        ctx?.clearRect(0, 0, vis.width, vis.height);
-        // visible canvas is the drawing surface; nothing else to clear
-      }
-    }
-
-    function onRoundEnd({ drawings }: { drawings: Record<string, string> }) {
-      // Guard against race: if user has left the room, ignore stale round-end
-      if (!roomCode) return;
-      setDrawings(drawings);
-      setEndsAtMs(null);
-      setView('results');
-    }
-
-    function onChatMessage(msg: ChatMessage) {
-      setChatMessages((prev) => [...prev.slice(-49), msg]); // keep last 50
-    }
-
-    function onSettingsUpdate(payload: SettingsUpdate) {
-      if (typeof payload.roundDuration === 'number') setRoundDuration(payload.roundDuration);
-      if (typeof payload.category !== 'undefined') setCategory(payload.category ?? null);
-    }
-
-    socket.on(Events.LobbyUpdate, onLobbyUpdate);
-    socket.on(Events.SettingsUpdate, onSettingsUpdate);
-    socket.on(Events.RoundStart, onRoundStart);
-    socket.on(Events.RoundEnd, onRoundEnd);
-    socket.on(Events.ChatMessage, onChatMessage);
-
-    return () => {
-      socket.off(Events.LobbyUpdate, onLobbyUpdate);
-      socket.off(Events.SettingsUpdate, onSettingsUpdate);
-      socket.off(Events.RoundStart, onRoundStart);
-      socket.off(Events.RoundEnd, onRoundEnd);
-      socket.off(Events.ChatMessage, onChatMessage);
-    };
-  }, [handleBack]);
+  // Socket event listeners handled in useGameSocket
 
   /* --------------- Timer effect ----------------------- */
   useEffect(() => {
@@ -348,14 +188,27 @@ function App() {
     }
   }, [view, endsAtMs, handleSubmitDrawing, myDrawing]);
 
+  /* --------------- Reset per-round local state -------- */
+  // When a new round starts (server sets endsAtMs), clear my local submission and canvas
+  useEffect(() => {
+    if (!endsAtMs) return;
+    setMyDrawing(null);
+    const canvas = canvasRef.current;
+    if (canvas) {
+      const ctx = canvas.getContext('2d');
+      if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+  }, [endsAtMs]);
+
   /* --------------- Validation helpers ---------------- */
   // Imported from lib/validation
 
   const debounceRef = useRef<number | null>(null);
+  const setRoundDurationAction = useGameStore((s) => s.applySettingsUpdate);
   const handleRoundDurationChange = (newDuration: number) => {
     const error = validateRoundDuration(newDuration);
     if (error) return;
-    setRoundDuration(newDuration);
+    setRoundDurationAction({ roundDuration: newDuration });
     if (/* derived host check */ (myId && hostId && myId === hostId) && socketRef.current && roomCode) {
       if (debounceRef.current) window.clearTimeout(debounceRef.current);
       debounceRef.current = window.setTimeout(() => {
@@ -365,7 +218,7 @@ function App() {
   };
 
   const handleCategoryPrefChange = (cat: string | null) => {
-    setCategory(cat);
+    useGameStore.getState().applySettingsUpdate({ category: cat ?? null });
     if ((myId && hostId && myId === hostId) && socketRef.current && roomCode) {
       socketRef.current.emit(Events.UpdateSettings, { code: roomCode, category: cat });
     }
@@ -409,7 +262,7 @@ function App() {
         const respMyId = (response.myId as string | undefined)
           ?? (response.playerId as string | undefined)
           ?? (response.id as string | undefined);
-        if (respMyId) setMyId(respMyId);
+        if (respMyId) useGameStore.getState().setMyId(respMyId);
       }
       // Do not rely on local isHost; derive from myId and hostId.
       // Persist session for auto-rejoin
@@ -427,7 +280,7 @@ function App() {
           }));
         }
       } catch (err) { void err; }
-      setChatMessages([]); // Clear chat messages when joining new room
+      useGameStore.getState().clearPerRoomState(); // reset per-room chat/drawings
       setView('lobby');
     });
   };
@@ -468,7 +321,7 @@ function App() {
             const respMyId = (res.myId as string | undefined)
               ?? (res.playerId as string | undefined)
               ?? (res.id as string | undefined);
-            if (respMyId) setMyId(respMyId);
+            if (respMyId) useGameStore.getState().setMyId(respMyId);
           }
           setRoomCode(inputCode.trim().toUpperCase());
           // Do not rely on local isHost; derive from myId and hostId.
@@ -487,7 +340,7 @@ function App() {
               }));
             }
           } catch (err) { void err; }
-          setChatMessages([]); // Clear chat messages when joining new room
+          useGameStore.getState().clearPerRoomState(); // reset per-room chat/drawings
           setView('lobby');
         } else {
           setJoinError(res.error || 'Failed to join room');

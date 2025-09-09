@@ -389,6 +389,42 @@ export default function DrawingCanvas(props: DrawingCanvasProps) {
           </div>
         </div>
 
+        {/* Mobile tools (compact) */}
+        <div className="order-2 md:hidden">
+          <div className="card w-full flex flex-col gap-2">
+            <div className="flex gap-2">
+              <button className={`btn icon ${selectedTool === 'brush' ? 'primary' : ''}`} onClick={() => onChangeTool('brush')} aria-label="Brush">
+                <Brush size={18} />
+              </button>
+              <button className={`btn icon ${selectedTool === 'bucket' ? 'primary' : ''}`} onClick={() => onChangeTool('bucket')} aria-label="Bucket">
+                <PaintBucket size={18} />
+              </button>
+            </div>
+            <ColorPicker
+              label="Color"
+              value={color}
+              onChange={onChangeColor}
+              isEyedropperActive={eyedropperActive}
+              onEyedropperToggle={() => setEyedropperActive(v => !v)}
+            />
+            {selectedTool === 'brush' && (
+              <div>
+                <div className="flex items-center justify-between gap-2">
+                  <div className="text-sm text-slate-600">Brush size: {brushSize}px</div>
+                  <div className="brush-preview" aria-hidden>
+                    <span className="brush-dot" style={{ width: Math.max(2, Math.min(brushSize, 40)), height: Math.max(2, Math.min(brushSize, 40)), background: color }} />
+                  </div>
+                </div>
+                <input className="range" type="range" min={2} max={40} value={brushSize} onChange={(e) => onChangeBrushSize(Number(e.target.value))} aria-label="Brush size" />
+              </div>
+            )}
+            <div className="flex gap-2">
+              <button className="btn" onClick={() => setConfirmClear(true)}>Clear</button>
+              <button className="btn" onClick={handleUndo} disabled={canvasHistory.length === 0}>Undo</button>
+            </div>
+          </div>
+        </div>
+
         {/* Canvas */}
         <div className="order-1 md:order-2 md:col-span-6 min-w-0">
           <div className="rounded-lg border border-slate-200 bg-white p-2 shadow-sm w-full grid place-items-center">
@@ -444,7 +480,7 @@ export default function DrawingCanvas(props: DrawingCanvasProps) {
               }}
             >
               <input
-                className="flex-1 min-w-0 w-0 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-sky-300"
+                className="input flex-1 min-w-0 w-0"
                 type="text"
                 value={chatInput}
                 onChange={(e) => setChatInput(e.target.value)}
@@ -454,9 +490,7 @@ export default function DrawingCanvas(props: DrawingCanvasProps) {
                 disabled={!myId}
                 autoComplete="off"
               />
-              <button type="submit" className="rounded-md bg-blue-500 text-white px-3 py-2 text-sm disabled:opacity-40 disabled:cursor-not-allowed shadow-sm shrink-0" disabled={!chatInput.trim() || !myId}>
-                Send
-              </button>
+              <button type="submit" className="btn primary small shrink-0" disabled={!chatInput.trim() || !myId}>Send</button>
             </form>
           </div>
         </div>
@@ -464,8 +498,8 @@ export default function DrawingCanvas(props: DrawingCanvasProps) {
 
       {/* Footer actions */}
       <div className="flex items-center gap-2 w-full max-w-md mx-auto">
-        <button className="btn primary flex-1" onClick={onSubmit} disabled={!canSubmit}>{submitted ? 'Submitted' : 'Submit Drawing'}</button>
-        <button className="btn danger flex-1" onClick={() => setConfirmQuit(true)}>Quit</button>
+        <button className="btn danger cta flex-1" onClick={() => setConfirmQuit(true)}>Quit</button>
+        <button className="btn primary cta flex-1" onClick={onSubmit} disabled={!canSubmit}>{submitted ? 'Submitted' : 'Submit Drawing'}</button>
       </div>
       <ConfirmDialog
         open={confirmClear}
@@ -496,4 +530,3 @@ export default function DrawingCanvas(props: DrawingCanvasProps) {
     </div>
   );
 }
-

@@ -31,6 +31,49 @@ Build + preview (prod mode):
 
 Architecture: Frontend communicates with the backend over Socket.IO; the backend maintains in-memory rooms.
 
+## Frontend Architecture (Updated)
+
+This project uses URL-based routing, a lightweight global store, and a single socket lifecycle binding.
+
+### Routing
+- `/` → Menu (nickname + host)
+- `/join` → Join by code
+- `/lobby` → Lobby and settings
+- `/draw` → Drawing screen
+- `/results` → Results gallery
+
+Guards and behavior:
+- Deep-linking to `/lobby`, `/draw`, or `/results` without an active room redirects to `/`.
+- When in a room, the current game phase is authoritative; browser back/forward cannot “time travel” to other phases. The URL snaps back to the active phase.
+- Leaving a room is done via UI controls, not the browser back button.
+
+### State Store (Zustand)
+- Store file: `src/stores/game.ts`
+- Tracks: `roomCode`, `inputCode`, `nickname`, `myId`, `hostId`, `players`, `prompt`, `roundDuration`, `category`, `roundCategory`, `endsAtMs`, `drawings`, `isConnected`, `toastMessage`, `chatMessages`.
+- Key actions: `lobbyUpdate`, `applySettingsUpdate`, `roundStart`, `roundEnd`, `addChatMessage`, `setConnection`, `clearPerRoomState`, `clearOnLeave`.
+- Host-change toasts are emitted in `lobbyUpdate` and auto-hide after 3s.
+
+### Socket Integration
+- Low-level socket: `src/lib/useSocket.ts` (singleton ref per app).
+- Store wiring: `src/lib/useGameSocket.ts` attaches one set of event handlers and updates the store. Also handles auto-rejoin on reconnect using `sessionStorage`.
+- Socket events centralized in `src/lib/constants/events.ts` to avoid string literals.
+
+### Views and Features
+- Lobby: `src/features/lobby/LobbyView.tsx` (still uses a small CSS file; Tailwind migration in progress).
+- Draw: `src/features/draw/DrawingView.tsx` (moved from `components/DrawingCanvas.tsx`).
+- Results: `src/features/results/ResultsView.tsx` with `features/results/components/ResultsGrid.tsx`.
+- Menu/Join: `src/features/menu/MenuView.tsx`, `src/features/join/JoinView.tsx`.
+- Categories helper: `src/lib/category.tsx` (`categories`, `getCategoryIcon`).
+
+### Styling Approach
+- Tailwind-first in components for layout and small UI pieces. Minimal global CSS in `src/index.css` and feature-scoped styles.
+- `src/features/lobby/lobby.css` will be progressively migrated to Tailwind utilities.
+
+### Developer Notes
+- Added dependencies: `react-router-dom@6`, `zustand`, `clsx`.
+- URL is synchronized with phase changes driven by server/store. Refresh on any route restores state when a valid session is present (auto-rejoin).
+- To adjust route guards, see the navigation effects in `src/App.tsx`.
+
 ### Backend Architecture
 - Everything happens over sockets. HTTP routes: `GET /` (info), `GET /healthz`, `GET /readyz`, `GET /version`.
 - Rooms live in memory, keyed by a 5-character code. Each room tracks host, players, prompt, drawings, duration, and category.
@@ -97,20 +140,3 @@ Timer Model
 - Single instance: in-memory rooms are fine and very fast.
 - Multiple instances: move room state to Redis and use the Socket.IO Redis adapter with sticky sessions at the load balancer.
 - Persistence: if you need to save drawings, store binary blobs in object storage and keep only metadata in your DB.
-
-### Server Configuration (env)
-
-```
-ALLOWED_ORIGINS=http://localhost:5173,https://your-vercel-app.vercel.app
-MAX_HTTP_BUFFER_SIZE=131072
-JSON_LIMIT=64kb
-MAX_PLAYERS_PER_ROOM=12
-ROOM_IDLE_MS=1800000
-MAX_DRAWING_BYTES=204800
-CHAT_RATE_LIMIT=5
-CHAT_RATE_WINDOW_MS=5000
-JOIN_RATE_LIMIT=5
-JOIN_RATE_WINDOW_MS=60000
-REJOIN_GRACE_MS=15000
-SESSION_SECRET=change-me
-```
