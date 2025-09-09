@@ -12,6 +12,7 @@ import { getCategoryIcon } from './lib/category';
 import { useSocket } from './lib/useSocket';
 import { useGameStore } from './stores/game';
 import { useGameSocket } from './lib/useGameSocket';
+import { usePortraitLock } from './lib/usePortraitLock';
 
 /* ─────────────────────────────────────────────────── */
 /*                    Component                       */
@@ -20,7 +21,14 @@ function App() {
   const navigate = useNavigate();
   const location = useLocation();
   /* --------------- Global / lobby state --------------- */
-  const [view, setView] = useState<'menu' | 'join' | 'lobby' | 'draw' | 'results'>('menu');
+  const [view, setView] = useState<'menu' | 'join' | 'lobby' | 'draw' | 'results'>(() => {
+    try {
+      const p = typeof window !== 'undefined' ? window.location.pathname : '/';
+      return p === '/join' ? 'join' : 'menu';
+    } catch {
+      return 'menu';
+    }
+  });
   const roomCode = useGameStore((s) => s.roomCode);
   const setRoomCode = useGameStore((s) => s.setRoomCode);
   const inputCode = useGameStore((s) => s.inputCode);
@@ -99,14 +107,9 @@ function App() {
     }
   }, [location.pathname, roomCode, view, navigate]);
 
-  // Sync view -> URL when view changes programmatically
-  useEffect(() => {
-    const path = view === 'menu' ? '/' : `/${view}`;
-    if (location.pathname !== path) {
-      navigate(path);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view]);
+  // Sync view -> URL only for in-room phases; outside a room the URL drives the view
+  // The in-room navigation is already handled in the guard effect above; avoid double-sync here.
+  // Intentionally no-op to prevent race loops between view<->URL for menu/join.
 
   const handleBack = useCallback(() => {
     const socket = socketRef.current;
@@ -251,6 +254,9 @@ function App() {
       return;
     }
     setLoading(true);
+    // Clear per-room ephemeral state before the server sends lobby updates
+    // to avoid wiping freshly received players/host after ACK.
+    useGameStore.getState().clearPerRoomState();
     socket.emit(Events.HostRoom, { nickname: nickname.trim() }, (response: { code?: string; myId?: string; token?: string; error?: string } & Record<string, unknown>) => {
       setLoading(false);
       if (response.error || !response.code) {
@@ -280,7 +286,6 @@ function App() {
           }));
         }
       } catch (err) { void err; }
-      useGameStore.getState().clearPerRoomState(); // reset per-room chat/drawings
       setView('lobby');
     });
   };
@@ -291,7 +296,9 @@ function App() {
       setNicknameError(error);
       return;
     }
+    // Update local view immediately, then push URL
     setView('join');
+    navigate('/join');
   };
 
   const handleJoinRoom = () => {
@@ -311,6 +318,9 @@ function App() {
     const socket = socketRef.current;
     if (!socket || !nickname || !inputCode) return;
     setLoading(true);
+    // Clear per-room ephemeral state before the server sends lobby updates
+    // to avoid wiping freshly received players/host after ACK.
+    useGameStore.getState().clearPerRoomState();
     socket.emit(
       Events.JoinRoom,
       { code: inputCode.trim().toUpperCase(), nickname: nickname.trim() },
@@ -340,7 +350,6 @@ function App() {
               }));
             }
           } catch (err) { void err; }
-          useGameStore.getState().clearPerRoomState(); // reset per-room chat/drawings
           setView('lobby');
         } else {
           setJoinError(res.error || 'Failed to join room');
@@ -399,8 +408,16 @@ function App() {
   };
 
   /* --------------- Render ----------------------------- */
+  const { orientationBlocked } = usePortraitLock();
   return (
     <div className="page">
+      {orientationBlocked && (
+        <div className="overlay" style={{ zIndex: 2000 }}>
+          <div className="card" role="alert" aria-live="assertive">
+            <h2 style={{ margin: 0 }}>Rotate your device to portrait to continue.</h2>
+          </div>
+        </div>
+      )}
       {toastMessage && (
         <div className="overlay" style={{ pointerEvents: 'none', background: 'transparent' }}>
           <div className="tag online" style={{ position: 'fixed', top: 12, left: '50%', transform: 'translateX(-50%)', zIndex: 1000 }}>
@@ -435,7 +452,7 @@ function App() {
             setInputCode(v);
           }}
           onJoin={handleJoinRoom}
-          onBack={() => setView('menu')}
+          onBack={() => { setView('menu'); navigate('/'); }}
         />
       )}
 
@@ -485,7 +502,18 @@ function App() {
       )}
 
       {view === 'results' && (
-        <ResultsView drawings={drawings} players={players} prompt={prompt} isHost={!!myId && !!hostId && myId === hostId} onStartNext={handleStartRound} onQuit={handleBack} />
+        <ResultsView
+          drawings={drawings}
+          players={players}
+          prompt={prompt}
+          isHost={!!myId && !!hostId && myId === hostId}
+          roundDuration={roundDuration}
+          category={category}
+          onRoundDurationChange={handleRoundDurationChange}
+          onCategoryChange={handleCategoryPrefChange}
+          onStartNext={handleStartRound}
+          onQuit={handleBack}
+        />
       )}
 
       {loading && <div className="overlay">Loading…</div>}

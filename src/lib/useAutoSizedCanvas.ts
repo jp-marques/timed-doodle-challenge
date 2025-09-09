@@ -64,9 +64,24 @@ export function useAutoSizedCanvas(
       }
     };
 
+    // Initial sizing
     resize();
+
+    // Respond to viewport changes (including DPR changes on zoom)
     window.addEventListener('resize', resize);
-    return () => window.removeEventListener('resize', resize);
+
+    // Also respond to parent/container size changes (e.g., layout toggles)
+    const parent = canvasRef.current?.parentElement || undefined;
+    let ro: ResizeObserver | null = null;
+    if (parent && 'ResizeObserver' in window) {
+      ro = new ResizeObserver(() => resize());
+      try { ro.observe(parent); } catch {}
+    }
+
+    return () => {
+      window.removeEventListener('resize', resize);
+      try { ro?.disconnect(); } catch {}
+    };
   }, [canvasRef]);
 }
 
