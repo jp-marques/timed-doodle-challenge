@@ -1,4 +1,4 @@
-/* Super minimal, neutral UI */
+﻿/* Super minimal, neutral UI */
 
 :root {
   /* Theme: light, playful */
@@ -144,6 +144,12 @@ body {
 .draw-topbar .center { justify-self: center; font-weight: 600; }
 .draw-topbar .right { justify-self: end; }
 
+/* Tab toggle buttons (Tools / Chat) */
+.tab-toggle {
+  background: #ffffff;
+  border-radius: 12px;
+}
+
 /* New: cleaner draw header */
 .prompt-title { font-size: clamp(20px, 3vw, 28px); font-weight: 600; line-height: 1.2; text-align: center; }
 .timer-chip {
@@ -223,6 +229,9 @@ body {
 .btn.primary:hover:not(:disabled) { background: var(--primary-600); }
 .btn.secondary:hover:not(:disabled) { background: #e5e7eb; }
 .btn:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--ring); }
+
+/* Ensure Tools/Chat tab buttons are white with 12px radius */
+.btn.tab-toggle { background: #ffffff !important; border-radius: 12px !important; }
 
 /* --- Hero layout (menu/host/join) --- */
 .container { width: 100%; max-width: 1120px; margin: 0 auto; }
@@ -542,3 +551,22 @@ h1, h2 { margin: 0 0 8px; }
   /* Buttons already styled above; keep widths reasonable on narrow screens */
   .draw-actions .btn { min-width: 140px; }
 }
+
+/* --- Compact windows (small desktop) additions --- */
+:root { --chrome: 300px; }
+.dv-canvas-box { aspect-ratio: 4 / 3; width: min(1024px, 100%, calc((100svh - var(--chrome)) * 4 / 3)); margin-inline: auto; }
+.drawer-overlay { position: fixed; inset: 0; background: rgba(17,19,24,0.28); backdrop-filter: blur(2px); display: grid; place-items: stretch; z-index: 50; }
+.drawer-panel { position: absolute; top: 0; bottom: 0; width: min(92vw, 380px); background: var(--card); border-left: 1px solid var(--line); box-shadow: -8px 0 24px rgba(0,0,0,0.08); display: flex; flex-direction: column; gap: 8px; padding: 12px; }
+.drawer-right { right: 0; }
+.drawer-left { left: 0; border-left: 0; border-right: 1px solid var(--line); box-shadow: 8px 0 24px rgba(0,0,0,0.08); }
+.drawer-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.drawer-close { border: 1px solid var(--line); border-radius: 10px; background: #f3f4f6; padding: 6px 8px; }
+[data-compact] .card { padding: 12px; }
+[data-compact] .btn { padding: 8px 12px; }
+[data-compact] .cta { min-height: 40px; }
+[data-compact] .time-progress { height: 3px; }
+[data-compact] .hide-in-compact { display: none !important; }
+
+@supports not (height: 1svh) { .dv-canvas-box { width: min(1024px, 100%, calc((100vh - var(--chrome)) * 4 / 3)); } }
+
+

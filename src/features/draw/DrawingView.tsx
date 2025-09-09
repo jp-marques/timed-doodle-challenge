@@ -1,9 +1,9 @@
-import React, { useEffect, useRef, useState } from 'react';
+﻿import React, { useEffect, useRef, useState } from 'react';
 import type { JSX } from 'react';
 import { useAutoSizedCanvas } from '../../lib/useAutoSizedCanvas';
 import type { ChatMessage } from '../../types';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
-import { Brush, PaintBucket, Clock, ChevronDown } from 'lucide-react';
+import { Brush, PaintBucket, Clock, ChevronDown, MessageSquare, X } from 'lucide-react';
 import { ColorPicker } from '../../components/ui/ColorPicker';
 
 export type DrawingTool = 'brush' | 'bucket';
@@ -67,6 +67,26 @@ export default function DrawingCanvas(props: DrawingCanvasProps) {
   const [confirmClear, setConfirmClear] = useState(false);
   const [confirmQuit, setConfirmQuit] = useState(false);
   const [eyedropperActive, setEyedropperActive] = useState(false);
+  // Small-window compact layout + drawers
+  const [compact, setCompact] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
+  const [toolsOpen, setToolsOpen] = useState(false);
+  // Track last seen index to derive unread count robustly
+  const [lastSeenIndex, setLastSeenIndex] = useState<number>(0);
+  useEffect(() => {
+    const recompute = () => {
+      const w = window.innerWidth || 0;
+      const h = window.innerHeight || 0;
+      const isCompact = w < 1200 || h < 780;
+      setCompact(isCompact);
+      setIsMobile(w < 900);
+      document.documentElement?.style.setProperty('--chrome', isCompact ? '320px' : '300px');
+    };
+    recompute();
+    window.addEventListener('resize', recompute);
+    return () => window.removeEventListener('resize', recompute);
+  }, []);
 
   useAutoSizedCanvas(canvasRef);
 
@@ -302,24 +322,45 @@ export default function DrawingCanvas(props: DrawingCanvasProps) {
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatMessages]);
+  // Update last seen baseline whenever chat becomes visible (desktop or drawer open)
+  useEffect(() => {
+    const chatVisible = !compact || chatOpen;
+    if (chatVisible) {
+      setLastSeenIndex(chatMessages.length);
+    }
+  }, [compact, chatOpen, chatMessages.length]);
+  // Derived unread count based on messages since last seen
+  const unreadCount = React.useMemo(() => {
+    if (!compact || chatOpen) return 0;
+    if (!Array.isArray(chatMessages)) return 0;
+    const slice = chatMessages.slice(Math.max(0, Math.min(lastSeenIndex, chatMessages.length)));
+    let count = 0;
+    for (const msg of slice) {
+      if (msg && !msg.isSystem && (!myId || msg.id !== myId)) count++;
+    }
+    return count;
+  }, [chatMessages, lastSeenIndex, myId, compact, chatOpen]);
   useEffect(() => {
     // Default to collapsed on small screens to save space
     try {
       if (window?.matchMedia && window.matchMedia('(max-width: 767px)').matches) {
         setChatCollapsed(true);
       }
-    } catch {}
+    } catch {
+      void 0; // ignore matchMedia errors
+    }
   }, []);
 
   return (
-    <div className="flex flex-col gap-3 p-3 md:p-4">
+    <div className="flex flex-col gap-3 p-3 md:p-4" data-compact={compact ? "" : undefined}>
       {/* Header */}
       <div className="grid grid-cols-[80px_1fr_80px] md:grid-cols-[auto_1fr_auto] items-center gap-3">
-        <div className="justify-self-start">
-          {category && (
-            <div aria-label="Category" className="inline-flex items-center justify-center rounded-md border border-slate-200 bg-white p-2">
-              <div className="[&>*]:h-6 [&>*]:w-6">{getCategoryIcon(category)}</div>
-            </div>
+        <div className="justify-self-start flex items-center gap-2">
+          <div aria-label="Category" className="inline-flex items-center justify-center rounded-md border border-slate-200 bg-white p-2">
+            <div className="[&>*]:h-6 [&>*]:w-6">{getCategoryIcon(category ?? 'random')}</div>
+          </div>
+          {compact && !isMobile && (
+            <button className="btn icon tab-toggle" style={{ borderRadius: '12px', background: '#fff' }} aria-label="Open tools" onClick={() => setToolsOpen(true)}><Brush size={18} /></button>
           )}
         </div>
         <div className="flex flex-col items-center gap-1 text-center">
@@ -333,6 +374,24 @@ export default function DrawingCanvas(props: DrawingCanvasProps) {
           </div>
         </div>
         <div className="flex items-center gap-2 justify-self-end">
+          {compact && (
+            <button
+              className="btn icon tab-toggle relative"
+              style={{ borderRadius: '12px', background: '#fff' }}
+              aria-label={unreadCount > 0 ? `Open chat, ${unreadCount} unread` : 'Open chat'}
+              onClick={() => setChatOpen(true)}
+            >
+              <MessageSquare size={18} />
+              {unreadCount > 0 && (
+                <span
+                  className="absolute -top-1 -right-1 inline-flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] min-w-[16px] h-[16px] px-[4px] leading-none"
+                  aria-hidden
+                >
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              )}
+            </button>
+          )}
           <div className="inline-flex items-center gap-1 rounded-full border border-slate-200 px-2 py-1 text-xs text-slate-700"><Clock size={16} /> {timer}s</div>
           {submitted && <div className="hidden md:inline-flex rounded-full bg-green-100 text-green-700 text-xs px-2 py-1">Submitted</div>}
         </div>
@@ -341,7 +400,7 @@ export default function DrawingCanvas(props: DrawingCanvasProps) {
       {/* Main grid: tools / canvas / chat */}
       <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-stretch w-full">
         {/* Tools (left on desktop, below canvas on mobile) */}
-        <div className="order-2 md:order-1 md:col-span-3 hidden md:flex">
+        <div className="order-2 md:order-1 md:col-span-3 hidden md:flex hide-in-compact">
           <div className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm w-full flex flex-col gap-2">
           <div className="flex gap-2">
             <button className={`btn icon ${selectedTool === 'brush' ? 'primary' : ''}`} onClick={() => onChangeTool('brush')} aria-label="Brush">
@@ -426,9 +485,9 @@ export default function DrawingCanvas(props: DrawingCanvasProps) {
         </div>
 
         {/* Canvas */}
-        <div className="order-1 md:order-2 md:col-span-6 min-w-0">
+        <div className={`order-1 md:order-2 ${compact ? 'md:col-span-12' : 'md:col-span-6'} min-w-0`}>
           <div className="rounded-lg border border-slate-200 bg-white p-2 shadow-sm w-full grid place-items-center">
-            <div className="w-full max-w-[min(100%,1024px)] aspect-[4/3]">
+            <div className="w-full max-w-[min(100%,1024px)] dv-canvas-box">
               <canvas
                 ref={canvasRef}
                 onPointerDown={handlePointerDown}
@@ -436,13 +495,14 @@ export default function DrawingCanvas(props: DrawingCanvasProps) {
                 onPointerUp={handlePointerUp}
                 onPointerLeave={handlePointerUp}
                 className="block w-full h-full rounded-md bg-white"
+                style={{ touchAction: 'none' }}
               />
             </div>
           </div>
         </div>
 
         {/* Chat */}
-        <div className="order-3 md:col-span-3 flex min-w-0">
+        <div className="order-3 md:col-span-3 flex min-w-0 hide-in-compact">
           <div className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm w-full flex flex-col gap-2 min-w-0 overflow-hidden">
             {/* Header with mobile collapse toggle */}
             <div className="flex items-center justify-between">
@@ -496,6 +556,54 @@ export default function DrawingCanvas(props: DrawingCanvasProps) {
         </div>
       </div>
 
+      
+      {/* Drawers for compact mode */}
+      {compact && chatOpen && (
+        <div className="drawer-overlay" role="dialog" aria-label="Chat panel" onClick={() => setChatOpen(false)}>
+          <div className="drawer-panel drawer-right" onClick={(e) => e.stopPropagation()}>
+            <div className="drawer-header"><div className="text-sm text-slate-600">Chat</div><button className="drawer-close" aria-label="Close chat" onClick={() => setChatOpen(false)}><X size={16} /></button></div>
+            <div className="overflow-auto p-2 flex flex-col gap-1 rounded-md bg-slate-50" style={{height:'calc(100svh - 120px)'}}>
+              {chatMessages.length === 0 && <div className="text-slate-400 text-center text-sm">No messages yet</div>}
+              {chatMessages.map((msg, i) =>
+                msg.isSystem ? (
+                  <div key={i} className="text-slate-400 text-center text-xs py-1">{msg.text}</div>
+                ) : (
+                  <div key={i} className={`flex flex-col ${msg.id === myId ? 'items-end' : 'items-start'}`}>
+                    <div className="text-[11px] text-slate-400">{msg.nickname}</div>
+                    <div className={`inline-block rounded-md px-2 py-1 text-[13px] max-w-[240px] ${msg.id === myId ? 'bg-sky-100' : 'bg-slate-100'}`}>{msg.text}</div>
+                  </div>
+                )
+              )}
+              <div ref={chatEndRef} />
+            </div>
+            <form className="flex gap-2 min-w-0" onSubmit={(e) => { e.preventDefault(); handleSendChat(); }}>
+              <input className="input flex-1 min-w-0 w-0" type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)} placeholder="Type a message..." aria-label="Chat message" maxLength={120} disabled={!myId} autoComplete="off" />
+              <button type="submit" className="btn primary small shrink-0" disabled={!chatInput.trim() || !myId}>Send</button>
+            </form>
+          </div>
+        </div>
+      )}
+      {compact && toolsOpen && (
+        <div className="drawer-overlay" role="dialog" aria-label="Tools panel" onClick={() => setToolsOpen(false)}>
+          <div className="drawer-panel drawer-left" onClick={(e) => e.stopPropagation()}>
+            <div className="drawer-header"><div className="text-sm text-slate-600">Tools</div><button className="drawer-close" aria-label="Close tools" onClick={() => setToolsOpen(false)}><X size={16} /></button></div>
+            <div className="flex flex-col gap-2">
+              <div className="flex gap-2">
+                <button className={`btn icon ${selectedTool === 'brush' ? 'primary' : ''}`} onClick={() => onChangeTool('brush')} aria-label="Brush"><Brush size={18} /></button>
+                <button className={`btn icon ${selectedTool === 'bucket' ? 'primary' : ''}`} onClick={() => onChangeTool('bucket')} aria-label="Bucket"><PaintBucket size={18} /></button>
+              </div>
+              <ColorPicker label="Color" value={color} onChange={onChangeColor} isEyedropperActive={eyedropperActive} onEyedropperToggle={() => setEyedropperActive(v => !v)} />
+              {selectedTool === 'brush' && (
+                <div>
+                  <div className="flex items-center justify-between gap-2"><div className="text-sm text-slate-600">Brush size: {brushSize}px</div><div className="brush-preview" aria-hidden><span className="brush-dot" style={{ width: Math.max(2, Math.min(brushSize, 40)), height: Math.max(2, Math.min(brushSize, 40)), background: color }} /></div></div>
+                  <input className="range" type="range" min={2} max={40} value={brushSize} onChange={(e) => onChangeBrushSize(Number(e.target.value))} aria-label="Brush size" />
+                </div>
+              )}
+              <div className="flex gap-2"><button className="btn" onClick={() => { setConfirmClear(true); setToolsOpen(false); }}>Clear</button><button className="btn" onClick={handleUndo} disabled={canvasHistory.length === 0}>Undo</button></div>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Footer actions */}
       <div className="flex items-center gap-2 w-full max-w-md mx-auto">
         <button className="btn danger cta flex-1" onClick={() => setConfirmQuit(true)}>Quit</button>
@@ -530,3 +638,8 @@ export default function DrawingCanvas(props: DrawingCanvasProps) {
     </div>
   );
 }
+
+
+
+
+
