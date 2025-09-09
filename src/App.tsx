@@ -199,6 +199,14 @@ function App() {
         window.setTimeout(() => setToastMessage(null), 3000);
       }
 
+      // Fallback: if myId is still unknown (e.g., older prod ACKs),
+      // derive it from nickname. The server enforces unique nicknames per room.
+      if (!myId && nickname && nextPlayers.length > 0) {
+        const targetName = nickname.trim().toLowerCase();
+        const self = nextPlayers.find(p => p.nickname.trim().toLowerCase() === targetName);
+        if (self?.id) setMyId(self.id);
+      }
+
       setPlayers(nextPlayers);
       setHostId(nextHostId);
     }
