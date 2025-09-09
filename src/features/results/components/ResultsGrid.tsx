@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { Player } from '../types';
+import type { Player } from '../../../types';
 
 export default function ResultsGrid({ drawings, players }: { drawings: Record<string, string>; players: Player[] }) {
   const [page, setPage] = useState(0);
@@ -54,5 +54,3 @@ export default function ResultsGrid({ drawings, players }: { drawings: Record<st
     </>
   );
 }
-
-

@@ -1,20 +1,23 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { JSX } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import './App.css';
-import DrawingCanvas from './components/DrawingCanvas';
+import DrawingView from './features/draw/DrawingView';
 import { MenuView } from './features/menu/MenuView';
 import { JoinView } from './features/join/JoinView';
 import { LobbyView } from './features/lobby/LobbyView';
 import { ResultsView } from './features/results/ResultsView';
 import type { Player, ChatMessage, LobbyUpdate, SettingsUpdate } from './types';
 import { validateNickname, validateRoundDuration } from './lib/validation';
-import { Shuffle, PawPrint, Box, Leaf, Utensils, Car, Wand2, Building2, Trophy } from 'lucide-react';
+import { Events } from './lib/constants/events';
+import { getCategoryIcon } from './lib/category';
 import { useSocket } from './lib/useSocket';
 
 /* ─────────────────────────────────────────────────── */
 /*                    Component                       */
 /* ─────────────────────────────────────────────────── */
 function App() {
+  const navigate = useNavigate();
+  const location = useLocation();
   /* --------------- Global / lobby state --------------- */
   const [view, setView] = useState<'menu' | 'join' | 'lobby' | 'draw' | 'results'>('menu');
   const [roomCode, setRoomCode] = useState('');
@@ -86,10 +89,45 @@ function App() {
   }, [socketRef]);
 
   /* --------------- Navigation ------------------------- */
+  // Navigation + guards
+  useEffect(() => {
+    const path = location.pathname;
+    // Outside a room: allow only menu/join to be controlled by URL
+    if (!roomCode) {
+      const nextView = path === '/' ? 'menu' : path === '/join' ? 'join' : 'menu';
+      setView((prev) => (prev !== nextView ? nextView : prev));
+      if (path === '/lobby' || path === '/draw' || path === '/results') {
+        navigate('/', { replace: true });
+      }
+      return;
+    }
+
+    // In a room: the phase (view) is authoritative; keep URL in sync
+    if (view === 'lobby' || view === 'draw' || view === 'results') {
+      const desired = `/${view}`;
+      if (path !== desired) navigate(desired, { replace: true });
+      return;
+    }
+
+    // Edge: have a room but view is menu/join (e.g., rejoin in progress)
+    if (path === '/' || path === '/join') {
+      if (view !== 'menu' && view !== 'join') navigate('/lobby', { replace: true });
+    }
+  }, [location.pathname, roomCode, view, navigate]);
+
+  // Sync view -> URL when view changes programmatically
+  useEffect(() => {
+    const path = view === 'menu' ? '/' : `/${view}`;
+    if (location.pathname !== path) {
+      navigate(path);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view]);
+
   const handleBack = useCallback(() => {
     const socket = socketRef.current;
     if (socket && roomCode) {
-      socket.emit('leave-room', roomCode);
+      socket.emit(Events.LeaveRoom, roomCode);
     }
     try { sessionStorage.removeItem('td.session'); } catch (err) { void err; }
     setView('menu');
@@ -122,18 +160,18 @@ function App() {
       const ctx = off.getContext('2d');
       if (!ctx) return;
       ctx.imageSmoothingEnabled = true;
-      try { (ctx as any).imageSmoothingQuality = 'high'; } catch {}
+      ctx.imageSmoothingQuality = 'high';
       ctx.clearRect(0, 0, EXPORT_W, EXPORT_H);
       // Draw whole source onto target with scaling
       ctx.drawImage(src, 0, 0, src.width, src.height, 0, 0, EXPORT_W, EXPORT_H);
       const dataUrl = off.toDataURL('image/webp', 0.8);
       setMyDrawing(dataUrl);
-      socketRef.current.emit('submit-drawing', { code: roomCode, drawing: dataUrl });
-    } catch (err) {
+      socketRef.current.emit(Events.SubmitDrawing, { code: roomCode, drawing: dataUrl });
+    } catch {
       // Fallback: send whatever is on the main canvas
       const dataUrl = canvasRef.current.toDataURL('image/webp', 0.8);
       setMyDrawing(dataUrl);
-      socketRef.current.emit('submit-drawing', { code: roomCode, drawing: dataUrl });
+      socketRef.current.emit(Events.SubmitDrawing, { code: roomCode, drawing: dataUrl });
     }
   }, [roomCode]);
 
@@ -148,7 +186,7 @@ function App() {
         if (!raw) return;
         const session = JSON.parse(raw) as { code: string; myId: string; nickname: string; token: string; isHost: boolean };
         if (!session?.code || !session?.myId || !session?.token) return;
-        socket.emit('rejoin-room', { code: session.code.trim().toUpperCase(), playerId: session.myId, token: session.token, nickname: session.nickname }, (res: { ok: boolean; myId?: string; hostId?: string; error?: string } & Record<string, unknown>) => {
+        socket.emit(Events.RejoinRoom, { code: session.code.trim().toUpperCase(), playerId: session.myId, token: session.token, nickname: session.nickname }, (res: { ok: boolean; myId?: string; hostId?: string; error?: string } & Record<string, unknown>) => {
           if (!res?.ok) {
             try { sessionStorage.removeItem('td.session'); } catch (err) { void err; }
             return;
@@ -266,18 +304,18 @@ function App() {
       if (typeof payload.category !== 'undefined') setCategory(payload.category ?? null);
     }
 
-    socket.on('lobby-update', onLobbyUpdate);
-    socket.on('settings-update', onSettingsUpdate);
-    socket.on('round-start', onRoundStart);
-    socket.on('round-end', onRoundEnd);
-    socket.on('chat-message', onChatMessage);
+    socket.on(Events.LobbyUpdate, onLobbyUpdate);
+    socket.on(Events.SettingsUpdate, onSettingsUpdate);
+    socket.on(Events.RoundStart, onRoundStart);
+    socket.on(Events.RoundEnd, onRoundEnd);
+    socket.on(Events.ChatMessage, onChatMessage);
 
     return () => {
-      socket.off('lobby-update', onLobbyUpdate);
-      socket.off('settings-update', onSettingsUpdate);
-      socket.off('round-start', onRoundStart);
-      socket.off('round-end', onRoundEnd);
-      socket.off('chat-message', onChatMessage);
+      socket.off(Events.LobbyUpdate, onLobbyUpdate);
+      socket.off(Events.SettingsUpdate, onSettingsUpdate);
+      socket.off(Events.RoundStart, onRoundStart);
+      socket.off(Events.RoundEnd, onRoundEnd);
+      socket.off(Events.ChatMessage, onChatMessage);
     };
   }, [handleBack]);
 
@@ -321,7 +359,7 @@ function App() {
     if (/* derived host check */ (myId && hostId && myId === hostId) && socketRef.current && roomCode) {
       if (debounceRef.current) window.clearTimeout(debounceRef.current);
       debounceRef.current = window.setTimeout(() => {
-        socketRef.current?.emit('update-settings', { code: roomCode, roundDuration: newDuration });
+        socketRef.current?.emit(Events.UpdateSettings, { code: roomCode, roundDuration: newDuration });
       }, 200);
     }
   };
@@ -329,7 +367,7 @@ function App() {
   const handleCategoryPrefChange = (cat: string | null) => {
     setCategory(cat);
     if ((myId && hostId && myId === hostId) && socketRef.current && roomCode) {
-      socketRef.current.emit('update-settings', { code: roomCode, category: cat });
+      socketRef.current.emit(Events.UpdateSettings, { code: roomCode, category: cat });
     }
   };
 
@@ -360,7 +398,7 @@ function App() {
       return;
     }
     setLoading(true);
-    socket.emit('host-room', { nickname: nickname.trim() }, (response: { code?: string; myId?: string; token?: string; error?: string } & Record<string, unknown>) => {
+    socket.emit(Events.HostRoom, { nickname: nickname.trim() }, (response: { code?: string; myId?: string; token?: string; error?: string } & Record<string, unknown>) => {
       setLoading(false);
       if (response.error || !response.code) {
         setNicknameError(response.error || 'Failed to create room');
@@ -421,7 +459,7 @@ function App() {
     if (!socket || !nickname || !inputCode) return;
     setLoading(true);
     socket.emit(
-      'join-room',
+      Events.JoinRoom,
       { code: inputCode.trim().toUpperCase(), nickname: nickname.trim() },
       (res: { success: boolean; error?: string; myId?: string; token?: string } & Record<string, unknown>) => {
         setLoading(false);
@@ -459,11 +497,11 @@ function App() {
   };
 
   const handleToggleReady = () => {
-    socketRef.current?.emit('toggle-ready', roomCode);
+    socketRef.current?.emit(Events.ToggleReady, roomCode);
   };
 
   const handleStartRound = () => {
-    if (myId && hostId && myId === hostId) socketRef.current?.emit('start-round', { code: roomCode });
+    if (myId && hostId && myId === hostId) socketRef.current?.emit(Events.StartRound, { code: roomCode });
   };
 
   const handleClearCanvas = () => {
@@ -477,28 +515,7 @@ function App() {
   };
 
   /* --------------- Utility ---------------------------- */
-  function getCategoryIcon(category: string): JSX.Element {
-    switch (category) {
-      case 'animals':
-        return (<PawPrint size={32} />);
-      case 'objects':
-        return (<Box size={32} />);
-      case 'nature':
-        return (<Leaf size={32} />);
-      case 'food':
-        return (<Utensils size={32} />);
-      case 'vehicles':
-        return (<Car size={32} />);
-      case 'fantasy':
-        return (<Wand2 size={32} />);
-      case 'buildings':
-        return (<Building2 size={32} />);
-      case 'sports':
-        return (<Trophy size={32} />);
-      default:
-        return (<Shuffle size={32} />);
-    }
-  }
+  // getCategoryIcon moved to lib/category
 
   /* --------------- Error state ------------------------- */
   const [nicknameError, setNicknameError] = useState('');
@@ -524,7 +541,7 @@ function App() {
   /* --------------- Send chat message --------------------- */
   const handleSendChat = () => {
     if (!chatInput.trim() || !socketRef.current || !roomCode) return;
-    socketRef.current.emit('chat-message', { code: roomCode, text: chatInput });
+    socketRef.current.emit(Events.ChatMessage, { code: roomCode, text: chatInput });
     setChatInput('');
   };
 
@@ -588,7 +605,7 @@ function App() {
 
       {/* DRAWING */}
       {view === 'draw' && (
-        <DrawingCanvas
+        <DrawingView
           color={brushColor}
           brushSize={brushSize}
           selectedTool={selectedTool}

@@ -1,9 +1,10 @@
 // No React import needed for react-jsx runtime
-import { useEffect, useMemo, useRef, useState, type JSX } from 'react';
-import { Shuffle, PawPrint, Box, Leaf, Utensils, Car, Wand2, Building2, Trophy, Lock } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Lock } from 'lucide-react';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import type { Player } from '../../types';
 import './lobby.css';
+import { categories } from '../../lib/category';
 
 export function LobbyView({
   players,
@@ -81,18 +82,6 @@ export function LobbyView({
     timersRef.current.push(idleTimer as unknown as number);
     return () => clearTimers();
   }, [showCustomDuration, roundDuration, isHost, durationPresets]);
-
-  const categories: Array<{ key: string; label: string; icon: JSX.Element }> = [
-    { key: 'random', label: 'Random', icon: (<Shuffle size={20} />) },
-    { key: 'animals', label: 'Animals', icon: (<PawPrint size={20} />) },
-    { key: 'objects', label: 'Objects', icon: (<Box size={20} />) },
-    { key: 'nature', label: 'Nature', icon: (<Leaf size={20} />) },
-    { key: 'food', label: 'Food', icon: (<Utensils size={20} />) },
-    { key: 'vehicles', label: 'Vehicles', icon: (<Car size={20} />) },
-    { key: 'fantasy', label: 'Fantasy', icon: (<Wand2 size={20} />) },
-    { key: 'buildings', label: 'Buildings', icon: (<Building2 size={20} />) },
-    { key: 'sports', label: 'Sports', icon: (<Trophy size={20} />) },
-  ];
 
   const selectedKey = category ?? 'random';
 

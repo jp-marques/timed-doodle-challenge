@@ -1,10 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import type { JSX } from 'react';
-import { useAutoSizedCanvas } from '../lib/useAutoSizedCanvas';
-import type { ChatMessage } from '../types';
-import { ConfirmDialog } from './ui/ConfirmDialog';
+import { useAutoSizedCanvas } from '../../lib/useAutoSizedCanvas';
+import type { ChatMessage } from '../../types';
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { Brush, PaintBucket, Clock, ChevronDown } from 'lucide-react';
-import { ColorPicker } from './ui/ColorPicker';
+import { ColorPicker } from '../../components/ui/ColorPicker';
 
 export type DrawingTool = 'brush' | 'bucket';
 
@@ -384,75 +384,24 @@ export default function DrawingCanvas(props: DrawingCanvasProps) {
               />
             </div>
           )}
-          <div className="flex gap-2">
             <button className="btn" onClick={() => setConfirmClear(true)}>Clear</button>
             <button className="btn" onClick={handleUndo} disabled={canvasHistory.length === 0}>Undo</button>
-          </div>
           </div>
         </div>
 
         {/* Canvas */}
-        <div className="order-1 md:order-2 md:col-span-6 flex flex-col gap-2">
-          <div className="relative rounded-lg border border-slate-200 bg-white shadow-sm overflow-hidden max-w-[1350px] w-full mx-auto">
-            <canvas
-              ref={canvasRef}
-              className={`w-full drawing-canvas ${eyedropperActive ? 'cursor-pipette' : (selectedTool === 'brush' ? 'cursor-brush' : 'cursor-bucket')}`}
-              onPointerDown={handlePointerDown}
-              onPointerMove={handlePointerMove}
-              onPointerUp={handlePointerUp}
-              onPointerLeave={handlePointerUp}
-              tabIndex={0}
-            />
-            {/* Removed mobile submit FAB to avoid duplicate actions with footer */}
-          </div>
-
-          {/* Compact tools row under canvas for mobile */}
-          <div className="md:hidden rounded-lg border border-slate-200 bg-white p-3 shadow-sm grid grid-cols-2 gap-2 items-center">
-            <button className={`btn ${selectedTool === 'brush' ? 'primary' : ''}`} onClick={() => onChangeTool('brush')}>
-              <span className="inline-flex items-center gap-1"><Brush size={16} /> Brush</span>
-            </button>
-            <button className={`btn ${selectedTool === 'bucket' ? 'primary' : ''}`} onClick={() => onChangeTool('bucket')}>
-              <span className="inline-flex items-center gap-1"><PaintBucket size={16} /> Bucket</span>
-            </button>
-            <div className="col-span-2">
-              <ColorPicker
-                label="Color"
-                value={color}
-                onChange={onChangeColor}
-                isEyedropperActive={eyedropperActive}
-                onEyedropperToggle={() => setEyedropperActive(v => !v)}
+        <div className="order-1 md:order-2 md:col-span-6 min-w-0">
+          <div className="rounded-lg border border-slate-200 bg-white p-2 shadow-sm w-full grid place-items-center">
+            <div className="w-full max-w-[min(100%,1024px)] aspect-[4/3]">
+              <canvas
+                ref={canvasRef}
+                onPointerDown={handlePointerDown}
+                onPointerMove={handlePointerMove}
+                onPointerUp={handlePointerUp}
+                onPointerLeave={handlePointerUp}
+                className="block w-full h-full rounded-md bg-white"
               />
             </div>
-            {selectedTool === 'brush' && (
-              <>
-                {/* Mobile brush size with fixed preview area to avoid layout shift */}
-                <div className="col-span-2 flex items-center justify-between">
-                  <div className="text-sm text-slate-600">Brush size</div>
-                  <div className="h-10 w-10 grid place-items-center">
-                    <span
-                      aria-hidden
-                      className="inline-block rounded-full"
-                      style={{
-                        width: Math.max(2, Math.min(brushSize, 40)),
-                        height: Math.max(2, Math.min(brushSize, 40)),
-                        background: color,
-                      }}
-                    />
-                  </div>
-                </div>
-                <input
-                  className="range col-span-2"
-                  type="range"
-                  min={2}
-                  max={40}
-                  value={brushSize}
-                  onChange={(e) => onChangeBrushSize(Number(e.target.value))}
-                  aria-label="Brush size"
-                />
-              </>
-            )}
-            <button className="btn" onClick={() => setConfirmClear(true)}>Clear</button>
-            <button className="btn" onClick={handleUndo} disabled={canvasHistory.length === 0}>Undo</button>
           </div>
         </div>
 
@@ -547,5 +496,4 @@ export default function DrawingCanvas(props: DrawingCanvasProps) {
     </div>
   );
 }
-
 
