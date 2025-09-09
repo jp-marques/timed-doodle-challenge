@@ -26,8 +26,7 @@ function App() {
   const [endsAtMs, setEndsAtMs] = useState<number | null>(null);
   const [roundDuration, setRoundDuration] = useState(60); // Round duration setting for hosts
   const [drawings, setDrawings] = useState<Record<string, string>>({});
-  // Keep legacy host setter for compatibility; derive host elsewhere.
-  const [, setIsHost] = useState(false);
+  // Host status is derived from ids; no legacy state needed.
   // Lobby preference; null means Random
   const [category, setCategory] = useState<string | null>(null);
   // Active round category (for the drawing screen)
@@ -102,7 +101,6 @@ function App() {
     setDrawings({});
     setMyDrawing(null);
     setPlayers([]);
-    setIsHost(false);
     setHostId(null);
     setEndsAtMs(null);
     setChatMessages([]); // Clear chat messages when leaving room
@@ -150,30 +148,29 @@ function App() {
         if (!raw) return;
         const session = JSON.parse(raw) as { code: string; myId: string; nickname: string; token: string; isHost: boolean };
         if (!session?.code || !session?.myId || !session?.token) return;
-        socket.emit('rejoin-room', { code: session.code.trim().toUpperCase(), playerId: session.myId, token: session.token, nickname: session.nickname }, (res: { ok: boolean; myId?: string; hostId?: string; error?: string }) => {
+        socket.emit('rejoin-room', { code: session.code.trim().toUpperCase(), playerId: session.myId, token: session.token, nickname: session.nickname }, (res: { ok: boolean; myId?: string; hostId?: string; error?: string } & Record<string, unknown>) => {
           if (!res?.ok) {
             try { sessionStorage.removeItem('td.session'); } catch (err) { void err; }
             return;
           }
-          setRoomCode(session.code.trim().toUpperCase());
-          setMyId(res.myId || session.myId);
-          // Do not set isHost here; derive it from myId and hostId below.
-          setChatMessages([]);
-          setView('lobby');
+          const normalized = session.code.trim().toUpperCase();
+          if (roomCode !== normalized) setRoomCode(normalized);
+          {
+            const respMyId = (res.myId as string | undefined)
+              ?? (res.playerId as string | undefined)
+              ?? session.myId;
+            setMyId(respMyId || session.myId);
+          }
+          // Keep current UI state; do not clear chat or force view.
         });
       } catch (err) { void err; }
     };
 
-    // Only attempt rejoin if we are not already in a room locally
-    const tryRejoinIfNeeded = () => {
-      if (!roomCode) tryRejoin();
-    };
-
-    // If already connected (e.g., hot reload), attempt immediately
-    if (socket.connected) tryRejoinIfNeeded();
-    socket.on('connect', tryRejoinIfNeeded);
+    // Always rejoin on connect if a session exists (non-destructive)
+    if (socket.connected) tryRejoin();
+    socket.on('connect', tryRejoin);
     return () => {
-      socket.off('connect', tryRejoinIfNeeded);
+      socket.off('connect', tryRejoin);
     };
   }, [socketRef, roomCode]);
 
@@ -355,21 +352,29 @@ function App() {
       return;
     }
     setLoading(true);
-    socket.emit('host-room', { nickname: nickname.trim() }, (response: { code?: string; myId?: string; token?: string; error?: string }) => {
+    socket.emit('host-room', { nickname: nickname.trim() }, (response: { code?: string; myId?: string; token?: string; error?: string } & Record<string, unknown>) => {
       setLoading(false);
       if (response.error || !response.code) {
         setNicknameError(response.error || 'Failed to create room');
         return;
       }
-      setRoomCode(response.code);
-      if (response.myId) setMyId(response.myId);
+      setRoomCode(response.code.trim().toUpperCase());
+      {
+        const respMyId = (response.myId as string | undefined)
+          ?? (response.playerId as string | undefined)
+          ?? (response.id as string | undefined);
+        if (respMyId) setMyId(respMyId);
+      }
       // Do not rely on local isHost; derive from myId and hostId.
       // Persist session for auto-rejoin
       try {
-        if (response.myId && response.token) {
+        const respMyId = (response.myId as string | undefined)
+          ?? (response.playerId as string | undefined)
+          ?? (response.id as string | undefined);
+        if (respMyId && response.token) {
           sessionStorage.setItem('td.session', JSON.stringify({
             code: response.code,
-            myId: response.myId,
+            myId: respMyId,
             nickname: nickname.trim(),
             token: response.token,
             isHost: true,
@@ -410,18 +415,26 @@ function App() {
     socket.emit(
       'join-room',
       { code: inputCode.trim().toUpperCase(), nickname: nickname.trim() },
-      (res: { success: boolean; error?: string; myId?: string; token?: string }) => {
+      (res: { success: boolean; error?: string; myId?: string; token?: string } & Record<string, unknown>) => {
         setLoading(false);
         if (res.success) {
-          if (res.myId) setMyId(res.myId);
-          setRoomCode(inputCode);
+          {
+            const respMyId = (res.myId as string | undefined)
+              ?? (res.playerId as string | undefined)
+              ?? (res.id as string | undefined);
+            if (respMyId) setMyId(respMyId);
+          }
+          setRoomCode(inputCode.trim().toUpperCase());
           // Do not rely on local isHost; derive from myId and hostId.
           // Persist session for auto-rejoin
           try {
-            if (res.myId && res.token) {
+            const respMyId = (res.myId as string | undefined)
+              ?? (res.playerId as string | undefined)
+              ?? (res.id as string | undefined);
+            if (respMyId && res.token) {
               sessionStorage.setItem('td.session', JSON.stringify({
                 code: inputCode.trim().toUpperCase(),
-                myId: res.myId,
+                myId: respMyId,
                 nickname: nickname.trim(),
                 token: res.token,
                 isHost: false,
