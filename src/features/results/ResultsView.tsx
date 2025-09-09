@@ -20,23 +20,17 @@ export function ResultsView({
 }) {
   const [confirmQuit, setConfirmQuit] = useState(false);
   return (
-    <div className="panel" style={{ textAlign: 'center' }}>
-      <h2>Results</h2>
-      <div className="muted">
-        Prompt: <b>{prompt}</b>
-      </div>
+    <div className="w-full text-center">
+      <h2 className="text-[clamp(24px,3.5vw,32px)] font-bold">Results</h2>
+      <div className="text-slate-500">Prompt: <b>{prompt}</b></div>
       <ResultsGrid drawings={drawings} players={players} />
       {isHost && (
-        <div className="row" style={{ justifyContent: 'center', marginTop: 8 }}>
-          <button className="btn primary" onClick={onStartNext}>
-            Start Next Round
-          </button>
+        <div className="flex justify-center mt-2">
+          <button className="btn primary cta min-w-[220px]" onClick={onStartNext}>Start Next Round</button>
         </div>
       )}
-      <div className="row" style={{ justifyContent: 'center', marginTop: 8 }}>
-        <button className="btn danger" onClick={() => setConfirmQuit(true)}>
-          Quit
-        </button>
+      <div className="flex justify-center mt-2">
+        <button className="btn danger cta min-w-[220px]" onClick={() => setConfirmQuit(true)}>Quit</button>
       </div>
       <ConfirmDialog
         open={confirmQuit}
@@ -51,4 +45,3 @@ export function ResultsView({
     </div>
   );
 }
-

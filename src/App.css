@@ -14,7 +14,7 @@
   --ring: rgba(59,130,246,0.32);
   --danger: #ef4444;
   --success: #10b981;
-  --radius: 14px;
+  --radius: 12px;
   /* UI sizes */
   --cp-swatch-size: 54px; /* desktop swatches */
   --cp-gap: 10px; /* swatch gap */
@@ -303,7 +303,12 @@ body {
 .lobby-code { margin-top: 8px; display: flex; gap: 8px; justify-content: center; }
 .lobby-grid { display: grid; gap: 16px; margin: 16px auto 0; max-width: 1120px; }
 @media (min-width: 900px) {
-  .lobby-grid { grid-template-columns: 360px 1fr; align-items: start; }
+  /* Ensure both lobby cards align top and bottom on desktop */
+  .lobby-grid { grid-template-columns: 360px 1fr; align-items: stretch; }
+  /* Stretch cards to equal height within the grid row */
+  .lobby-grid > .card { height: 100%; display: flex; flex-direction: column; }
+  /* Cancel adjacent-card top margin inside grid to keep tops aligned */
+  .lobby-grid > .card + .card { margin-top: 0; }
 }
 
 .list { border: 0; }

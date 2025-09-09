@@ -14,8 +14,12 @@ type ColorPickerProps = {
 export function ColorPicker({ value, onChange, label = 'Color', palette, isEyedropperActive, onEyedropperToggle }: ColorPickerProps): JSX.Element {
   const defaultPalette = useMemo(() => (
     [
-      '#EF4444', '#F97316', '#F59E0B', '#10B981', '#22C55E', '#06B6D4', '#3B82F6', '#8B5CF6',
-      '#FECACA', '#FDE68A', '#DCFCE7', /* removed '#CFFAFE' for 5x3 */ '#DBEAFE', '#E9D5FF', '#111827', '#6B7280',
+      // Row 1: warm → cool primaries
+      '#DC2626', '#F97316', '#F59E0B', '#16A34A', '#2563EB',
+      // Row 2: cyan/teal → purples → magenta
+      '#0EA5E9', '#14B8A6', '#8B5CF6', '#7C3AED', '#DB2777',
+      // Row 3: light fills and neutrals
+      '#FECACA', '#FED7AA', '#FEF08A', '#111827', '#6B7280',
     ]
   ), []);
   const colors = palette ?? defaultPalette;

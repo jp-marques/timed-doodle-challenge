@@ -3,7 +3,6 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Lock } from 'lucide-react';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import type { Player } from '../../types';
-import './lobby.css';
 import { categories } from '../../lib/category';
 
 export function LobbyView({
@@ -55,7 +54,6 @@ export function LobbyView({
   // If in custom mode and the value equals a preset for 5s, return to preset mode.
   const timersRef = useRef<number[]>([]);
   const [isAutoClosing, setIsAutoClosing] = useState<boolean>(false);
-  const [highlightPreset, setHighlightPreset] = useState<boolean>(false);
   const [confirmOpen, setConfirmOpen] = useState<boolean>(false);
   function clearTimers() {
     for (const id of timersRef.current) clearTimeout(id);
@@ -73,9 +71,6 @@ export function LobbyView({
       const closeTimer = window.setTimeout(() => {
         setShowCustomDuration(false);
         setIsAutoClosing(false);
-        setHighlightPreset(true);
-        const highlightTimer = window.setTimeout(() => setHighlightPreset(false), 240);
-        timersRef.current.push(highlightTimer as unknown as number);
       }, 220);
       timersRef.current.push(closeTimer as unknown as number);
     }, 5000);
@@ -154,11 +149,11 @@ export function LobbyView({
   }
 
   return (
-    <div className="panel" style={{ textAlign: 'center' }}>
-      <div className="lobby-header">
-        <h1>Lobby</h1>
-        <div className="lobby-subhead">Get ready to draw! The game will begin shortly.</div>
-        <div className="lobby-code">
+    <div className="w-full text-center">
+      <div className="mx-auto max-w-[640px]">
+        <h1 className="font-bold text-[clamp(24px,3.5vw,32px)] leading-tight">Lobby</h1>
+        <div className="text-slate-500 mt-1">Get ready to draw! The game will begin shortly.</div>
+        <div className="mt-2 flex gap-2 justify-center">
           <div
             className="room-chip"
             aria-label={`Room code ${roomCode}`}
@@ -171,32 +166,24 @@ export function LobbyView({
             <span>Room</span>
             <code>{roomCode}</code>
           </div>
-          <button
-            className="copy-btn"
-            title="Copy room code"
-            onClick={handleCopyRoomCode}
-          >
+          <button className="copy-btn" title="Copy room code" onClick={handleCopyRoomCode}>
             {copied ? 'Copied!' : 'Copy'}
           </button>
         </div>
       </div>
 
-      <div className="lobby-grid">
-        {/* Players card (left) */}
-        <div className="card players-card" style={{ textAlign: 'left' }}>
-          <h3>Players</h3>
+      <div className="grid gap-4 mx-auto mt-4 max-w-[1120px] md:grid-cols-[360px_1fr] items-stretch lobby-grid">
+        {/* Players card */}
+        <div className="card text-left flex flex-col h-full">
+          <h3 className="m-0 mb-2">Players</h3>
           <div className="players">
             {sortedPlayers.map((p) => (
               <div key={p.id} className="player-row">
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <div
-                    className="avatar"
-                    style={{ background: colorForId(p.id) }}
-                    aria-hidden
-                  >
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-full border border-slate-200 grid place-items-center text-[12px] font-semibold" style={{ background: colorForId(p.id) }} aria-hidden>
                     {getInitials(p.nickname)}
                   </div>
-                  <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 200 }}>
+                  <div className="truncate max-w-[200px]">
                     {p.nickname}
                     {p.id === myId ? ' (you)' : ''}
                   </div>
@@ -211,28 +198,28 @@ export function LobbyView({
           </div>
         </div>
 
-        {/* Game settings card (right) */}
-        <div className={isHost ? 'card' : 'card card-disabled'} style={{ textAlign: 'left' }}>
-          <h3 style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        {/* Game settings */}
+        <div className={isHost ? 'card text-left h-full' : 'card text-left saturate-[0.85] h-full'}>
+          <h3 className="flex items-center justify-between m-0 mb-2">
             <span>Game settings</span>
             {!isHost && (
-              <span className="disabled-badge">
+              <span className="inline-flex items-center gap-1.5 text-xs bg-black/70 text-white px-2 py-1 rounded-full">
                 <Lock size={14} />
                 <span>Host controls</span>
               </span>
             )}
           </h3>
-          {!isHost && <div className="muted">Only hosts can change game settings.</div>}
+          {!isHost && <div className="text-slate-500">Only hosts can change game settings.</div>}
 
           {/* Duration */}
-          <div className="label" style={{ marginBottom: 8 }}>Game duration</div>
-          <div className="segment-row" role="group" aria-label="Game duration presets" style={{ marginBottom: 8 }}>
+          <div className="label mt-2 mb-2">Game duration</div>
+          <div className="flex flex-wrap gap-2 mb-2" role="group" aria-label="Game duration presets">
             {durationPresets.map((v) => {
               const isSelectedPreset = !isCustomDuration && roundDuration === v;
               return (
                 <button
                   key={v}
-                  className={isSelectedPreset && highlightPreset ? 'segment highlight-in' : 'segment'}
+                  className={`rounded-[12px] border px-2.5 py-1 ${isSelectedPreset ? 'bg-blue-500 text-white border-blue-500' : 'bg-slate-50 border-slate-200 text-slate-900'}`}
                   aria-pressed={isSelectedPreset}
                   onClick={() => {
                     if (!isHost) return;
@@ -246,7 +233,7 @@ export function LobbyView({
               );
             })}
             <button
-              className="segment"
+              className={`rounded-[12px] border px-2.5 py-1 ${isHost ? (showCustomDuration || isCustomDuration ? 'bg-blue-500 text-white border-blue-500' : 'bg-slate-50 border-slate-200 text-slate-900') : 'bg-slate-50 border-slate-200 text-slate-900'}`}
               aria-pressed={isHost ? (showCustomDuration || isCustomDuration) : isCustomDuration}
               onClick={() => isHost && setShowCustomDuration(true)}
               disabled={!isHost}
@@ -255,14 +242,13 @@ export function LobbyView({
               Custom…
             </button>
             {isCustomDuration && !isHost && (
-              <span className="segment-value" aria-live="polite">{roundDuration} s</span>
+              <span className="self-center text-slate-500 text-sm" aria-live="polite">{roundDuration} s</span>
             )}
           </div>
           {isHost && showCustomDuration && (
-            <div className={isAutoClosing ? 'row fade-out' : 'row'} style={{ gap: 8, alignItems: 'center' }}>
+            <div className={`flex items-center gap-2 ${isAutoClosing ? 'opacity-0 translate-y-1 transition duration-200' : ''}`}>
               <input
-                style={{ maxWidth: 160 }}
-                className="input"
+                className="input max-w-[160px]"
                 type="number"
                 min={15}
                 max={300}
@@ -281,24 +267,24 @@ export function LobbyView({
           )}
 
           {/* Category */}
-          <div className="label" id="category-label" style={{ marginTop: 16, marginBottom: 8 }}>Category</div>
-          <div className="category-grid" role="radiogroup" aria-labelledby="category-label">
+          <div className="label mt-4 mb-2" id="category-label">Category</div>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 fill-gap-last-in-2col" role="radiogroup" aria-labelledby="category-label">
             {categories.map((c) => {
               const checked = selectedKey === c.key;
               const disabled = !isHost;
               return (
                 <button
                   key={c.key}
-                  className={checked ? 'category-tile selected' : 'category-tile'}
-                  role="radio"
+                  className={`inline-flex flex-col items-center justify-center gap-2 min-h-[72px] border rounded-[12px] px-2 py-2 ${checked ? 'border-blue-500 ring-2 ring-sky-300' : 'border-slate-200'} ${disabled ? 'opacity-75 cursor-not-allowed' : ''}`}
+                role="radio"
                   aria-checked={checked}
                   aria-disabled={disabled}
                   disabled={disabled}
                   tabIndex={checked ? 0 : -1}
                   onClick={() => onCategoryChange?.(c.key === 'random' ? null : c.key)}
                 >
-                  <span className="tile-icon" aria-hidden>{c.icon}</span>
-                  <span className="tile-label">{c.label}</span>
+                  <span aria-hidden className="[&>*]:w-5 [&>*]:h-5">{c.icon}</span>
+                  <span className="text-sm">{c.label}</span>
                 </button>
               );
             })}
@@ -307,46 +293,73 @@ export function LobbyView({
       </div>
 
       {/* Actions */}
-      <div className="lobby-actions sticky-action" role="group" aria-label="Lobby actions">
-        {isHost ? (
-          <>
-            <button className="btn primary" onClick={onStart} disabled={!allNonHostReady}>Start Game</button>
-            <div className="label ready-counter" aria-live="polite" style={{ alignSelf: 'center' }}>
-              {readyIncludingHost}/{totalPlayers} ready
-            </div>
-            <button
-              className="btn danger"
-              onClick={() => {
-                setConfirmOpen(true);
-              }}
-            >
-              Quit
-            </button>
-          </>
-        ) : (
-          <>
-            <button className="btn primary" onClick={onToggleReady}>
-              {players.find((p) => p.id === myId)?.isReady ? 'Not ready' : "I'm ready"}
-            </button>
-            <div className="label ready-counter" aria-live="polite" style={{ alignSelf: 'center' }}>
-              {readyIncludingHost}/{totalPlayers} ready
-            </div>
-            <button
-              className="btn danger"
-              onClick={() => {
-                const othersPresent = players.length > 1;
-                if (othersPresent) setConfirmOpen(true); else onQuit();
-              }}
-            >
-              Quit
-            </button>
-          </>
-        )}
+      {/* Desktop actions */}
+      <div className="hidden md:flex gap-3 justify-center max-w-[560px] mx-auto mt-6" role="group" aria-label="Lobby actions">
+          {isHost ? (
+            <>
+              <button className="btn danger cta flex-1 min-w-[160px]" onClick={() => setConfirmOpen(true)}>
+                Quit
+              </button>
+              <div className="label self-center min-w-[88px] text-center" aria-live="polite">
+                {readyIncludingHost}/{totalPlayers} ready
+              </div>
+              <button className="btn primary cta flex-1 min-w-[160px]" onClick={onStart} disabled={!allNonHostReady}>Start Game</button>
+            </>
+          ) : (
+            <>
+              <button
+                className="btn danger cta flex-1 min-w-[160px]"
+                onClick={() => {
+                  const othersPresent = players.length > 1;
+                  if (othersPresent) setConfirmOpen(true); else onQuit();
+                }}
+              >
+                Quit
+              </button>
+              <div className="label self-center min-w-[88px] text-center" aria-live="polite">
+                {readyIncludingHost}/{totalPlayers} ready
+              </div>
+              <button className="btn primary cta flex-1 min-w-[160px]" onClick={onToggleReady}>
+                {players.find((p) => p.id === myId)?.isReady ? 'Not ready' : "I'm ready"}
+              </button>
+            </>
+          )}
       </div>
 
-      {/* Toast removed: inline button state provides feedback */}
+      {/* Mobile sticky actions */}
+      <div className="md:hidden sticky bottom-0 bg-gradient-to-b from-transparent to-white/95 backdrop-blur border-t border-slate-200 z-10 pt-2" role="group" aria-label="Lobby actions">
+        <div className="flex gap-3 items-stretch justify-center max-w-[560px] mx-auto pb-2 px-2">
+          {isHost ? (
+            <>
+              <button className="btn danger cta flex-1 shrink" onClick={() => setConfirmOpen(true)}>
+                Quit
+              </button>
+              <div className="label self-center min-w-0 text-center truncate" aria-live="polite">
+                {readyIncludingHost}/{totalPlayers} ready
+              </div>
+              <button className="btn primary cta flex-1 shrink" onClick={onStart} disabled={!allNonHostReady}>Start Game</button>
+            </>
+          ) : (
+            <>
+              <button className="btn danger cta flex-1 shrink"
+                onClick={() => {
+                  const othersPresent = players.length > 1;
+                  if (othersPresent) setConfirmOpen(true); else onQuit();
+                }}
+              >
+                Quit
+              </button>
+              <div className="label self-center min-w-0 text-center truncate" aria-live="polite">
+                {readyIncludingHost}/{totalPlayers} ready
+              </div>
+              <button className="btn primary cta flex-1 shrink" onClick={onToggleReady}>
+                {players.find((p) => p.id === myId)?.isReady ? 'Not ready' : "I'm ready"}
+              </button>
+            </>
+          )}
+        </div>
+      </div>
 
-      {/* Confirm quit dialog */}
       <ConfirmDialog
         open={confirmOpen}
         title={isHost ? 'Disband lobby?' : 'Leave lobby?'}
@@ -363,5 +376,3 @@ export function LobbyView({
     </div>
   );
 }
-
-
