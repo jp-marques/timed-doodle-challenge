@@ -35,6 +35,12 @@ export function LobbyView({
   // Use explicit hostId from server, fallback to players[0] for backwards compatibility
   const hostId = hostIdProp ?? (players.length > 0 ? players[0].id : undefined);
   const allNonHostReady = useMemo(() => players.filter(p => p.id !== hostId).every(p => p.isReady), [players, hostId]);
+  const totalPlayers = players.length;
+  const readyIncludingHost = useMemo(() => {
+    const nonHostReady = players.filter(p => p.id !== hostId && p.isReady).length;
+    const hostPresent = players.some(p => p.id === hostId);
+    return nonHostReady + (hostPresent ? 1 : 0);
+  }, [players, hostId]);
 
   // Local UI state
   const durationPresets = useMemo(() => [30, 60, 90, 120] as number[], []);
@@ -317,7 +323,7 @@ export function LobbyView({
           <>
             <button className="btn primary" onClick={onStart} disabled={!allNonHostReady}>Start Game</button>
             <div className="label ready-counter" aria-live="polite" style={{ alignSelf: 'center' }}>
-              {players.filter(p => p.id !== hostId && p.isReady).length}/{players.filter(p => p.id !== hostId).length} ready
+              {readyIncludingHost}/{totalPlayers} ready
             </div>
             <button
               className="btn danger"
@@ -334,7 +340,7 @@ export function LobbyView({
               {players.find((p) => p.id === myId)?.isReady ? 'Not ready' : "I'm ready"}
             </button>
             <div className="label ready-counter" aria-live="polite" style={{ alignSelf: 'center' }}>
-              {players.filter(p => p.id !== hostId && p.isReady).length}/{players.filter(p => p.id !== hostId).length} ready
+              {readyIncludingHost}/{totalPlayers} ready
             </div>
             <button
               className="btn danger"

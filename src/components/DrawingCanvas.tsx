@@ -3,7 +3,7 @@ import type { JSX } from 'react';
 import { useAutoSizedCanvas } from '../lib/useAutoSizedCanvas';
 import type { ChatMessage } from '../types';
 import { ConfirmDialog } from './ui/ConfirmDialog';
-import { Brush, PaintBucket, Clock, Check } from 'lucide-react';
+import { Brush, PaintBucket, Clock, ChevronDown } from 'lucide-react';
 import { ColorPicker } from './ui/ColorPicker';
 
 export type DrawingTool = 'brush' | 'bucket';
@@ -69,6 +69,8 @@ export default function DrawingCanvas(props: DrawingCanvasProps) {
   const [eyedropperActive, setEyedropperActive] = useState(false);
 
   useAutoSizedCanvas(canvasRef);
+
+  // No offscreen master; draw directly to visible canvas
 
   const getScale = () => {
     const canvas = canvasRef.current;
@@ -206,102 +208,149 @@ export default function DrawingCanvas(props: DrawingCanvasProps) {
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    const data = imageData.data;
+    const w = canvas.width | 0;
+    const h = canvas.height | 0;
+    const imageData = ctx.getImageData(0, 0, w, h);
+    const data = imageData.data; // Uint8ClampedArray
+
     const hexToRgb = (hex: string) => {
       const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
       return result
-        ? {
-            r: parseInt(result[1], 16),
-            g: parseInt(result[2], 16),
-            b: parseInt(result[3], 16),
-          }
+        ? { r: parseInt(result[1], 16), g: parseInt(result[2], 16), b: parseInt(result[3], 16) }
         : null;
     };
     const fillRgb = hexToRgb(fillColor);
     if (!fillRgb) return;
-    const startPos = (startY * canvas.width + startX) * 4;
+
+    const startIdx = (startY * w + startX) | 0;
+    if (startIdx < 0 || startIdx >= w * h) return;
+    const startPos = startIdx * 4;
     const startR = data[startPos];
     const startG = data[startPos + 1];
     const startB = data[startPos + 2];
     const startA = data[startPos + 3];
+
+    // If starting color already matches fill, nothing to do
     const TOLERANCE = 32;
-    const colorMatches = (r: number, g: number, b: number, a: number) => {
+    const TOL_SQ = TOLERANCE * TOLERANCE;
+    const matches = (r: number, g: number, b: number, a: number) => {
+      // Handle transparency similarity
       if (startA === 0 && a === 0) return true;
-      if (startA === 0 && a > 0) return false;
-      if (startA > 0 && a === 0) return false;
-      const deltaR = Math.abs(r - startR);
-      const deltaG = Math.abs(g - startG);
-      const deltaB = Math.abs(b - startB);
-      const deltaA = Math.abs(a - startA);
-      const colorDistance = Math.sqrt(deltaR * deltaR + deltaG * deltaG + deltaB * deltaB);
-      return colorDistance <= TOLERANCE && deltaA <= TOLERANCE;
+      if ((startA === 0) !== (a === 0)) return false;
+      const dr = r - startR;
+      const dg = g - startG;
+      const db = b - startB;
+      const da = Math.abs(a - startA);
+      return (dr * dr + dg * dg + db * db) <= TOL_SQ && da <= TOLERANCE;
     };
-    if (colorMatches(fillRgb.r, fillRgb.g, fillRgb.b, 255)) return;
-    const pixelStack: Array<[number, number]> = [[startX, startY]];
-    const visited = new Set<string>();
-    while (pixelStack.length > 0) {
-      const [x, y] = pixelStack.pop()!;
-      if (x < 0 || x >= canvas.width || y < 0 || y >= canvas.height) continue;
-      const key = `${x},${y}`;
-      if (visited.has(key)) continue;
-      visited.add(key);
-      const pos = (y * canvas.width + x) * 4;
-      if (colorMatches(data[pos], data[pos + 1], data[pos + 2], data[pos + 3])) {
-        data[pos] = fillRgb.r;
-        data[pos + 1] = fillRgb.g;
-        data[pos + 2] = fillRgb.b;
-        data[pos + 3] = 255;
-        pixelStack.push([x + 1, y]);
-        pixelStack.push([x - 1, y]);
-        pixelStack.push([x, y + 1]);
-        pixelStack.push([x, y - 1]);
+    if (matches(fillRgb.r, fillRgb.g, fillRgb.b, 255)) return;
+
+    // Visited bitmap to avoid string allocs
+    const visited = new Uint8Array(w * h);
+    const stack: number[] = [startIdx];
+    visited[startIdx] = 1;
+
+    const FR = fillRgb.r | 0;
+    const FG = fillRgb.g | 0;
+    const FB = fillRgb.b | 0;
+
+    while (stack.length) {
+      const idx = stack.pop()!;
+      const pos = idx * 4;
+      const r = data[pos];
+      const g = data[pos + 1];
+      const b = data[pos + 2];
+      const a = data[pos + 3];
+      if (!matches(r, g, b, a)) continue;
+
+      // Paint
+      data[pos] = FR;
+      data[pos + 1] = FG;
+      data[pos + 2] = FB;
+      data[pos + 3] = 255;
+
+      // Neighbors: left, right, up, down
+      const x = idx % w;
+      const y = (idx / w) | 0;
+      // left
+      if (x > 0) {
+        const n = idx - 1;
+        if (!visited[n]) { visited[n] = 1; stack.push(n); }
+      }
+      // right
+      if (x + 1 < w) {
+        const n = idx + 1;
+        if (!visited[n]) { visited[n] = 1; stack.push(n); }
+      }
+      // up
+      if (y > 0) {
+        const n = idx - w;
+        if (!visited[n]) { visited[n] = 1; stack.push(n); }
+      }
+      // down
+      if (y + 1 < h) {
+        const n = idx + w;
+        if (!visited[n]) { visited[n] = 1; stack.push(n); }
       }
     }
+
     ctx.putImageData(imageData, 0, 0);
   };
 
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const [chatCollapsed, setChatCollapsed] = useState(false);
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatMessages]);
+  useEffect(() => {
+    // Default to collapsed on small screens to save space
+    try {
+      if (window?.matchMedia && window.matchMedia('(max-width: 767px)').matches) {
+        setChatCollapsed(true);
+      }
+    } catch {}
+  }, []);
 
   return (
-    <div className="dc-root panel">
-      <div className="section draw-topbar">
-        <div className="left">
+    <div className="flex flex-col gap-3 p-3 md:p-4">
+      {/* Header */}
+      <div className="grid grid-cols-[80px_1fr_80px] md:grid-cols-[auto_1fr_auto] items-center gap-3">
+        <div className="justify-self-start">
           {category && (
-            <div className="card category-card" aria-label="Category">
-              <div className="category-icon">{getCategoryIcon(category)}</div>
+            <div aria-label="Category" className="inline-flex items-center justify-center rounded-md border border-slate-200 bg-white p-2">
+              <div className="[&>*]:h-6 [&>*]:w-6">{getCategoryIcon(category)}</div>
             </div>
           )}
         </div>
-        <div className="center" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
-          <div className="label">Prompt</div>
-          <div className="prompt-title">{prompt}</div>
-          <div className="time-progress" aria-hidden>
+        <div className="flex flex-col items-center gap-1 text-center">
+          <div className="text-xs text-slate-500">Prompt</div>
+          <div className="font-semibold text-[clamp(18px,4vw,26px)] leading-tight">{prompt}</div>
+          <div className="h-1 w-full max-w-xl rounded bg-slate-200 overflow-hidden" aria-hidden>
             <div
-              className="bar"
-              style={{
-                width: `${Math.max(0, Math.min(100, (totalDuration > 0 ? (timer / totalDuration) : 0) * 100))}%`,
-                background: timer <= 10 ? 'var(--danger)' : 'var(--primary)',
-              }}
+              className={`h-full ${timer <= 10 ? 'bg-red-500' : 'bg-blue-600'}`}
+              style={{ width: `${Math.max(0, Math.min(100, (totalDuration > 0 ? (timer / totalDuration) : 0) * 100))}%` }}
             />
           </div>
         </div>
-        <div className="right" style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-          <div className="timer-chip"><Clock size={16} /> {timer}s</div>
-          {submitted && <div className="tag ready">Submitted</div>}
+        <div className="flex items-center gap-2 justify-self-end">
+          <div className="inline-flex items-center gap-1 rounded-full border border-slate-200 px-2 py-1 text-xs text-slate-700"><Clock size={16} /> {timer}s</div>
+          {submitted && <div className="hidden md:inline-flex rounded-full bg-green-100 text-green-700 text-xs px-2 py-1">Submitted</div>}
         </div>
       </div>
-      <div className="section wide draw-grid" style={{ marginLeft: 'auto', marginRight: 'auto', alignItems: 'stretch' }}>
-        <div className="card tools-rail">
-          <button className={`btn icon ${selectedTool === 'brush' ? 'primary' : ''}`} onClick={() => onChangeTool('brush')} aria-label="Brush">
-            <Brush size={18} />
-          </button>
-          <button className={`btn icon ${selectedTool === 'bucket' ? 'primary' : ''}`} onClick={() => onChangeTool('bucket')} aria-label="Bucket">
-            <PaintBucket size={18} />
-          </button>
+
+      {/* Main grid: tools / canvas / chat */}
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-stretch w-full">
+        {/* Tools (left on desktop, below canvas on mobile) */}
+        <div className="order-2 md:order-1 md:col-span-3 hidden md:flex">
+          <div className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm w-full flex flex-col gap-2">
+          <div className="flex gap-2">
+            <button className={`btn icon ${selectedTool === 'brush' ? 'primary' : ''}`} onClick={() => onChangeTool('brush')} aria-label="Brush">
+              <Brush size={18} />
+            </button>
+            <button className={`btn icon ${selectedTool === 'bucket' ? 'primary' : ''}`} onClick={() => onChangeTool('bucket')} aria-label="Bucket">
+              <PaintBucket size={18} />
+            </button>
+          </div>
           <ColorPicker
             label="Color"
             value={color}
@@ -310,14 +359,14 @@ export default function DrawingCanvas(props: DrawingCanvasProps) {
             onEyedropperToggle={() => setEyedropperActive(v => !v)}
           />
           <div>
-            <div className="row between" style={{ alignItems: 'center' }}>
-              <div className="label">Brush size: {brushSize}px</div>
+            <div className="flex items-center justify-between gap-2">
+              <div className="text-sm text-slate-600">Brush size: {brushSize}px</div>
               <div className="brush-preview" aria-hidden>
                 <span
                   className="brush-dot"
                   style={{
-                    width: Math.max(8, Math.min(brushSize, 32)),
-                    height: Math.max(8, Math.min(brushSize, 32)),
+                    width: Math.max(2, Math.min(brushSize, 40)),
+                    height: Math.max(2, Math.min(brushSize, 40)),
                     background: color,
                   }}
                 />
@@ -325,30 +374,37 @@ export default function DrawingCanvas(props: DrawingCanvasProps) {
             </div>
             <input className="range" type="range" min={2} max={40} value={brushSize} onChange={(e) => onChangeBrushSize(Number(e.target.value))} />
           </div>
-          <button className="btn" onClick={() => setConfirmClear(true)}>Clear</button>
-          <button className="btn" onClick={handleUndo} disabled={canvasHistory.length === 0}>Undo</button>
+          <div className="flex gap-2">
+            <button className="btn" onClick={() => setConfirmClear(true)}>Clear</button>
+            <button className="btn" onClick={handleUndo} disabled={canvasHistory.length === 0}>Undo</button>
+          </div>
+          </div>
         </div>
 
-        <div className="card canvas-col" style={{ height: '100%' }}>
-          <div className="canvas-wrap">
+        {/* Canvas */}
+        <div className="order-1 md:order-2 md:col-span-6 flex flex-col gap-2">
+          <div className="relative rounded-lg border border-slate-200 bg-white shadow-sm overflow-hidden max-w-[1350px] w-full mx-auto">
             <canvas
               ref={canvasRef}
-              className={`canvas ${eyedropperActive ? 'cursor-pipette' : (selectedTool === 'brush' ? 'cursor-brush' : 'cursor-bucket')}`}
+              className={`w-full drawing-canvas ${eyedropperActive ? 'cursor-pipette' : (selectedTool === 'brush' ? 'cursor-brush' : 'cursor-bucket')}`}
               onPointerDown={handlePointerDown}
               onPointerMove={handlePointerMove}
               onPointerUp={handlePointerUp}
               onPointerLeave={handlePointerUp}
               tabIndex={0}
             />
-            <button className="btn primary submit-fab" onClick={onSubmit} disabled={!canSubmit}>
-              {submitted ? <Check size={16} /> : 'Submit'}
-            </button>
+            {/* Removed mobile submit FAB to avoid duplicate actions with footer */}
           </div>
-          <div className="tools-grid">
+
+          {/* Compact tools row under canvas for mobile */}
+          <div className="md:hidden rounded-lg border border-slate-200 bg-white p-3 shadow-sm grid grid-cols-2 gap-2 items-center">
             <button className={`btn ${selectedTool === 'brush' ? 'primary' : ''}`} onClick={() => onChangeTool('brush')}>
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Brush size={16} /> Brush</span>
+              <span className="inline-flex items-center gap-1"><Brush size={16} /> Brush</span>
             </button>
-            <div style={{ gridColumn: 'span 2' }}>
+            <button className={`btn ${selectedTool === 'bucket' ? 'primary' : ''}`} onClick={() => onChangeTool('bucket')}>
+              <span className="inline-flex items-center gap-1"><PaintBucket size={16} /> Bucket</span>
+            </button>
+            <div className="col-span-2">
               <ColorPicker
                 label="Color"
                 value={color}
@@ -357,61 +413,96 @@ export default function DrawingCanvas(props: DrawingCanvasProps) {
                 onEyedropperToggle={() => setEyedropperActive(v => !v)}
               />
             </div>
-            <button className={`btn ${selectedTool === 'bucket' ? 'primary' : ''}`} onClick={() => onChangeTool('bucket')}>
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><PaintBucket size={16} /> Bucket</span>
-            </button>
-            <input className="range" type="range" min={2} max={40} value={brushSize} onChange={(e) => onChangeBrushSize(Number(e.target.value))} />
+            {/* Mobile brush size with fixed preview area to avoid layout shift */}
+            <div className="col-span-2 flex items-center justify-between">
+              <div className="text-sm text-slate-600">Brush size</div>
+              <div className="h-10 w-10 grid place-items-center">
+                <span
+                  aria-hidden
+                  className="inline-block rounded-full"
+                  style={{
+                    width: Math.max(2, Math.min(brushSize, 40)),
+                    height: Math.max(2, Math.min(brushSize, 40)),
+                    background: color,
+                  }}
+                />
+              </div>
+            </div>
+            <input
+              className="range col-span-2"
+              type="range"
+              min={2}
+              max={40}
+              value={brushSize}
+              onChange={(e) => onChangeBrushSize(Number(e.target.value))}
+              aria-label="Brush size"
+            />
             <button className="btn" onClick={() => setConfirmClear(true)}>Clear</button>
             <button className="btn" onClick={handleUndo} disabled={canvasHistory.length === 0}>Undo</button>
-            <div />
-            <button className="btn danger quit" onClick={() => setConfirmQuit(true)}>Quit</button>
           </div>
         </div>
 
-        <div className="card chat-col">
-          <div className="label">Chat</div>
-          <div className="chat-messages">
-            {chatMessages.length === 0 && <div className="muted" style={{ textAlign: 'center' }}>No messages yet</div>}
-            {chatMessages.map((msg, i) =>
-              msg.isSystem ? (
-                <div key={i} className="muted" style={{ textAlign: 'center' }}>
-                  {msg.text}
-                </div>
-              ) : (
-                <div key={i} className={`chat-msg ${msg.id === myId ? 'me' : ''}`}>
-                  <div className="chat-name">{msg.nickname}</div>
-                  <div className="chat-bubble">{msg.text}</div>
-                </div>
-              )
-            )}
-            <div ref={chatEndRef} />
+        {/* Chat */}
+        <div className="order-3 md:col-span-3 flex min-w-0">
+          <div className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm w-full flex flex-col gap-2 min-w-0 overflow-hidden">
+            {/* Header with mobile collapse toggle */}
+            <div className="flex items-center justify-between">
+              <div className="text-sm text-slate-600">Chat</div>
+              <button
+                type="button"
+                className="md:hidden inline-flex items-center justify-center rounded p-1 text-slate-600 hover:text-slate-800"
+                aria-label={chatCollapsed ? 'Expand chat' : 'Collapse chat'}
+                aria-expanded={!chatCollapsed}
+                aria-controls="chat-content"
+                onClick={() => setChatCollapsed((v) => !v)}
+              >
+                <ChevronDown size={18} className={`transition-transform duration-200 ${chatCollapsed ? '' : 'rotate-180'}`} />
+              </button>
+            </div>
+            <div id="chat-content" className={`${chatCollapsed ? 'hidden md:block' : ''} overflow-auto p-2 flex flex-col gap-1 rounded-md bg-slate-50 h-48 md:h-[calc(100svh-360px)]`}>
+              {chatMessages.length === 0 && <div className="text-slate-400 text-center text-sm">No messages yet</div>}
+              {chatMessages.map((msg, i) =>
+                msg.isSystem ? (
+                  <div key={i} className="text-slate-400 text-center text-xs py-1">{msg.text}</div>
+                ) : (
+                  <div key={i} className={`flex flex-col ${msg.id === myId ? 'items-end' : 'items-start'}`}>
+                    <div className="text-[11px] text-slate-400">{msg.nickname}</div>
+                    <div className={`inline-block rounded-md px-2 py-1 text-[13px] max-w-[240px] ${msg.id === myId ? 'bg-sky-100' : 'bg-slate-100'}`}>{msg.text}</div>
+                  </div>
+                )
+              )}
+              <div ref={chatEndRef} />
+            </div>
+            <form
+              className={`${chatCollapsed ? 'hidden md:flex' : 'flex'} gap-2 min-w-0`}
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleSendChat();
+              }}
+            >
+              <input
+                className="flex-1 min-w-0 w-0 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-sky-300"
+                type="text"
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                placeholder="Type a message..."
+                aria-label="Chat message"
+                maxLength={120}
+                disabled={!myId}
+                autoComplete="off"
+              />
+              <button type="submit" className="rounded-md bg-blue-500 text-white px-3 py-2 text-sm disabled:opacity-40 disabled:cursor-not-allowed shadow-sm shrink-0" disabled={!chatInput.trim() || !myId}>
+                Send
+              </button>
+            </form>
           </div>
-          <form
-            className="row"
-            onSubmit={(e) => {
-              e.preventDefault();
-              handleSendChat();
-            }}
-          >
-            <input
-              className="input"
-              type="text"
-              value={chatInput}
-              onChange={(e) => setChatInput(e.target.value)}
-              placeholder="Type a message..."
-              maxLength={120}
-              disabled={!myId}
-              autoComplete="off"
-            />
-            <button type="submit" className="btn primary" disabled={!chatInput.trim() || !myId}>
-              Send
-            </button>
-          </form>
         </div>
       </div>
-      <div className="section wide draw-actions">
-        <button className="btn primary" onClick={onSubmit} disabled={!canSubmit}>{submitted ? 'Submitted' : 'Submit Drawing'}</button>
-        <button className="btn danger" onClick={() => setConfirmQuit(true)}>Quit</button>
+
+      {/* Footer actions */}
+      <div className="flex items-center gap-2 w-full max-w-md mx-auto">
+        <button className="btn primary flex-1" onClick={onSubmit} disabled={!canSubmit}>{submitted ? 'Submitted' : 'Submit Drawing'}</button>
+        <button className="btn danger flex-1" onClick={() => setConfirmQuit(true)}>Quit</button>
       </div>
       <ConfirmDialog
         open={confirmClear}

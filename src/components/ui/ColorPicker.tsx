@@ -15,7 +15,7 @@ export function ColorPicker({ value, onChange, label = 'Color', palette, isEyedr
   const defaultPalette = useMemo(() => (
     [
       '#EF4444', '#F97316', '#F59E0B', '#10B981', '#22C55E', '#06B6D4', '#3B82F6', '#8B5CF6',
-      '#FECACA', '#FDE68A', '#DCFCE7', '#CFFAFE', '#DBEAFE', '#E9D5FF', '#111827', '#6B7280',
+      '#FECACA', '#FDE68A', '#DCFCE7', /* removed '#CFFAFE' for 5x3 */ '#DBEAFE', '#E9D5FF', '#111827', '#6B7280',
     ]
   ), []);
   const colors = palette ?? defaultPalette;
@@ -36,7 +36,6 @@ export function ColorPicker({ value, onChange, label = 'Color', palette, isEyedr
               onClick={() => onChange(c)}
               title={c}
             >
-              {selected && <span className="cp-swatch-indicator" />}
             </button>
           );
         })}
