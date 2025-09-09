@@ -40,7 +40,7 @@ export function useAutoSizedCanvas(
         const bctx = backup.getContext('2d');
         if (bctx) {
           bctx.imageSmoothingEnabled = true;
-          try { (bctx as any).imageSmoothingQuality = 'high'; } catch {}
+          try { (bctx as CanvasRenderingContext2D & { imageSmoothingQuality?: string }).imageSmoothingQuality = 'high'; } catch { /* imageSmoothingQuality not supported in this browser */ }
           bctx.drawImage(canvas, 0, 0);
         }
       }
@@ -57,7 +57,7 @@ export function useAutoSizedCanvas(
         if (ctx) {
           // Prefer smoothing when scaling previous content to avoid pixelation
           ctx.imageSmoothingEnabled = true;
-          try { (ctx as any).imageSmoothingQuality = 'high'; } catch {}
+          try { (ctx as CanvasRenderingContext2D & { imageSmoothingQuality?: string }).imageSmoothingQuality = 'high'; } catch { /* imageSmoothingQuality not supported in this browser */ }
           ctx.clearRect(0, 0, canvas.width, canvas.height);
           ctx.drawImage(backup, 0, 0, backup.width, backup.height, 0, 0, canvas.width, canvas.height);
         }
@@ -75,12 +75,12 @@ export function useAutoSizedCanvas(
     let ro: ResizeObserver | null = null;
     if (parent && 'ResizeObserver' in window) {
       ro = new ResizeObserver(() => resize());
-      try { ro.observe(parent); } catch {}
+      try { ro.observe(parent); } catch { /* ResizeObserver.observe failed, fallback to window resize only */ }
     }
 
     return () => {
       window.removeEventListener('resize', resize);
-      try { ro?.disconnect(); } catch {}
+      try { ro?.disconnect(); } catch { /* ResizeObserver.disconnect failed, ignore */ }
     };
   }, [canvasRef]);
 }
