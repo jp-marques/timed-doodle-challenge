@@ -358,22 +358,32 @@ export default function DrawingCanvas(props: DrawingCanvasProps) {
             isEyedropperActive={eyedropperActive}
             onEyedropperToggle={() => setEyedropperActive(v => !v)}
           />
-          <div>
-            <div className="flex items-center justify-between gap-2">
-              <div className="text-sm text-slate-600">Brush size: {brushSize}px</div>
-              <div className="brush-preview" aria-hidden>
-                <span
-                  className="brush-dot"
-                  style={{
-                    width: Math.max(2, Math.min(brushSize, 40)),
-                    height: Math.max(2, Math.min(brushSize, 40)),
-                    background: color,
-                  }}
-                />
+          {selectedTool === 'brush' && (
+            <div>
+              <div className="flex items-center justify-between gap-2">
+                <div className="text-sm text-slate-600">Brush size: {brushSize}px</div>
+                <div className="brush-preview" aria-hidden>
+                  <span
+                    className="brush-dot"
+                    style={{
+                      width: Math.max(2, Math.min(brushSize, 40)),
+                      height: Math.max(2, Math.min(brushSize, 40)),
+                      background: color,
+                    }}
+                  />
+                </div>
               </div>
+              <input
+                className="range"
+                type="range"
+                min={2}
+                max={40}
+                value={brushSize}
+                onChange={(e) => onChangeBrushSize(Number(e.target.value))}
+                aria-label="Brush size"
+              />
             </div>
-            <input className="range" type="range" min={2} max={40} value={brushSize} onChange={(e) => onChangeBrushSize(Number(e.target.value))} />
-          </div>
+          )}
           <div className="flex gap-2">
             <button className="btn" onClick={() => setConfirmClear(true)}>Clear</button>
             <button className="btn" onClick={handleUndo} disabled={canvasHistory.length === 0}>Undo</button>
@@ -413,30 +423,34 @@ export default function DrawingCanvas(props: DrawingCanvasProps) {
                 onEyedropperToggle={() => setEyedropperActive(v => !v)}
               />
             </div>
-            {/* Mobile brush size with fixed preview area to avoid layout shift */}
-            <div className="col-span-2 flex items-center justify-between">
-              <div className="text-sm text-slate-600">Brush size</div>
-              <div className="h-10 w-10 grid place-items-center">
-                <span
-                  aria-hidden
-                  className="inline-block rounded-full"
-                  style={{
-                    width: Math.max(2, Math.min(brushSize, 40)),
-                    height: Math.max(2, Math.min(brushSize, 40)),
-                    background: color,
-                  }}
+            {selectedTool === 'brush' && (
+              <>
+                {/* Mobile brush size with fixed preview area to avoid layout shift */}
+                <div className="col-span-2 flex items-center justify-between">
+                  <div className="text-sm text-slate-600">Brush size</div>
+                  <div className="h-10 w-10 grid place-items-center">
+                    <span
+                      aria-hidden
+                      className="inline-block rounded-full"
+                      style={{
+                        width: Math.max(2, Math.min(brushSize, 40)),
+                        height: Math.max(2, Math.min(brushSize, 40)),
+                        background: color,
+                      }}
+                    />
+                  </div>
+                </div>
+                <input
+                  className="range col-span-2"
+                  type="range"
+                  min={2}
+                  max={40}
+                  value={brushSize}
+                  onChange={(e) => onChangeBrushSize(Number(e.target.value))}
+                  aria-label="Brush size"
                 />
-              </div>
-            </div>
-            <input
-              className="range col-span-2"
-              type="range"
-              min={2}
-              max={40}
-              value={brushSize}
-              onChange={(e) => onChangeBrushSize(Number(e.target.value))}
-              aria-label="Brush size"
-            />
+              </>
+            )}
             <button className="btn" onClick={() => setConfirmClear(true)}>Clear</button>
             <button className="btn" onClick={handleUndo} disabled={canvasHistory.length === 0}>Undo</button>
           </div>
