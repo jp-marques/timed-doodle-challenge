@@ -26,7 +26,8 @@ function App() {
   const [endsAtMs, setEndsAtMs] = useState<number | null>(null);
   const [roundDuration, setRoundDuration] = useState(60); // Round duration setting for hosts
   const [drawings, setDrawings] = useState<Record<string, string>>({});
-  const [isHost, setIsHost] = useState(false);
+  // Keep legacy host setter for compatibility; derive host elsewhere.
+  const [, setIsHost] = useState(false);
   // Lobby preference; null means Random
   const [category, setCategory] = useState<string | null>(null);
   // Active round category (for the drawing screen)
@@ -156,20 +157,25 @@ function App() {
           }
           setRoomCode(session.code.trim().toUpperCase());
           setMyId(res.myId || session.myId);
-          setIsHost((res.hostId || '') === (res.myId || session.myId));
+          // Do not set isHost here; derive it from myId and hostId below.
           setChatMessages([]);
           setView('lobby');
         });
       } catch (err) { void err; }
     };
 
-    // If already connected (e.g., hot reload), attempt immediately
-    if (socket.connected) tryRejoin();
-    socket.on('connect', tryRejoin);
-    return () => {
-      socket.off('connect', tryRejoin);
+    // Only attempt rejoin if we are not already in a room locally
+    const tryRejoinIfNeeded = () => {
+      if (!roomCode) tryRejoin();
     };
-  }, [socketRef]);
+
+    // If already connected (e.g., hot reload), attempt immediately
+    if (socket.connected) tryRejoinIfNeeded();
+    socket.on('connect', tryRejoinIfNeeded);
+    return () => {
+      socket.off('connect', tryRejoinIfNeeded);
+    };
+  }, [socketRef, roomCode]);
 
   /* --------------- Socket event listeners ------------- */
   useEffect(() => {
@@ -307,7 +313,7 @@ function App() {
     const error = validateRoundDuration(newDuration);
     if (error) return;
     setRoundDuration(newDuration);
-    if (isHost && socketRef.current && roomCode) {
+    if (/* derived host check */ (myId && hostId && myId === hostId) && socketRef.current && roomCode) {
       if (debounceRef.current) window.clearTimeout(debounceRef.current);
       debounceRef.current = window.setTimeout(() => {
         socketRef.current?.emit('update-settings', { code: roomCode, roundDuration: newDuration });
@@ -317,7 +323,7 @@ function App() {
 
   const handleCategoryPrefChange = (cat: string | null) => {
     setCategory(cat);
-    if (isHost && socketRef.current && roomCode) {
+    if ((myId && hostId && myId === hostId) && socketRef.current && roomCode) {
       socketRef.current.emit('update-settings', { code: roomCode, category: cat });
     }
   };
@@ -357,7 +363,7 @@ function App() {
       }
       setRoomCode(response.code);
       if (response.myId) setMyId(response.myId);
-      setIsHost(true);
+      // Do not rely on local isHost; derive from myId and hostId.
       // Persist session for auto-rejoin
       try {
         if (response.myId && response.token) {
@@ -409,7 +415,7 @@ function App() {
         if (res.success) {
           if (res.myId) setMyId(res.myId);
           setRoomCode(inputCode);
-          setIsHost(false);
+          // Do not rely on local isHost; derive from myId and hostId.
           // Persist session for auto-rejoin
           try {
             if (res.myId && res.token) {
@@ -436,7 +442,7 @@ function App() {
   };
 
   const handleStartRound = () => {
-    if (isHost) socketRef.current?.emit('start-round', { code: roomCode });
+    if (myId && hostId && myId === hostId) socketRef.current?.emit('start-round', { code: roomCode });
   };
 
   const handleClearCanvas = () => {
@@ -546,7 +552,7 @@ function App() {
         <LobbyView
           players={players}
           roomCode={roomCode}
-          isHost={isHost}
+          isHost={!!myId && !!hostId && myId === hostId}
           roundDuration={roundDuration}
           category={category}
           onRoundDurationChange={handleRoundDurationChange}
@@ -588,7 +594,7 @@ function App() {
       )}
 
       {view === 'results' && (
-        <ResultsView drawings={drawings} players={players} prompt={prompt} isHost={isHost} onStartNext={handleStartRound} onQuit={handleBack} />
+        <ResultsView drawings={drawings} players={players} prompt={prompt} isHost={!!myId && !!hostId && myId === hostId} onStartNext={handleStartRound} onQuit={handleBack} />
       )}
 
       {loading && <div className="overlay">Loading…</div>}
