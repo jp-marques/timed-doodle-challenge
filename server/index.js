@@ -41,6 +41,14 @@ const { prompts, getRandomPrompt, getRandomPromptFromCategory } = require('./pro
 const { validateNickname, validateRoomCode, validateRoundDuration } = require('./validation');
 const rooms = {};
 
+function publicPlayers(list) {
+  return (Array.isArray(list) ? list : []).map(p => ({
+    id: p.id,
+    nickname: p.nickname,
+    isReady: !!p.isReady,
+  }));
+}
+
 // Helpers and state
 function normalizeCode(code) {
   if (!code || typeof code !== 'string') return null;
@@ -157,7 +165,7 @@ io.on('connection', (socket) => {
       
       // Send initial lobby state
       io.to(code).emit('lobby-update', {
-        players: rooms[code].players,
+        players: publicPlayers(rooms[code].players),
         hostId: rooms[code].host
       });
       // Send initial settings only to the host socket
@@ -229,7 +237,7 @@ io.on('connection', (socket) => {
         // Store stable player id on the socket for lifecycle cleanup
         try { socket.data.playerId = player.id; } catch {}
         io.to(trimmedCode).emit('lobby-update', {
-          players: rooms[trimmedCode].players,
+          players: publicPlayers(rooms[trimmedCode].players),
           hostId: rooms[trimmedCode].host
         });
         // Send current settings only to the newly joined socket
@@ -318,7 +326,7 @@ io.on('connection', (socket) => {
       }
 
       io.to(trimmedCode).emit('lobby-update', {
-        players: room.players,
+        players: publicPlayers(room.players),
         hostId: room.host
       });
 
@@ -547,7 +555,7 @@ io.on('connection', (socket) => {
 
     // Notify remaining players
     io.to(trimmedCode).emit('lobby-update', {
-      players: room.players,
+      players: publicPlayers(room.players),
       hostId: room.host
     });
   });
@@ -589,14 +597,14 @@ io.on('connection', (socket) => {
             const newHost = r.players[0];
             r.host = newHost.id;
             r.hostSocketId = newHost.socketId;
-            io.to(code).emit('lobby-update', { players: r.players, hostId: r.host });
+            io.to(code).emit('lobby-update', { players: publicPlayers(r.players), hostId: r.host });
           } else {
             if (r.roundTimeout) { try { clearTimeout(r.roundTimeout); } catch {} r.roundTimeout = null; }
             delete rooms[code];
             return;
           }
         } else if (r.players.length > 0) {
-          io.to(code).emit('lobby-update', { players: r.players, hostId: r.host });
+          io.to(code).emit('lobby-update', { players: publicPlayers(r.players), hostId: r.host });
         } else {
           if (r.roundTimeout) { try { clearTimeout(r.roundTimeout); } catch {} r.roundTimeout = null; }
           delete rooms[code];
@@ -613,6 +621,21 @@ app.get('/', (req, res) => {
 // Simple health/ready endpoints
 app.get('/healthz', (req, res) => res.status(200).json({ status: 'ok' }));
 app.get('/readyz', (req, res) => res.status(200).json({ ready: true }));
+
+// Version endpoint: helps verify deployed server build
+try {
+  const pkg = require('./package.json');
+  app.get('/version', (req, res) => {
+    res.status(200).json({
+      name: pkg.name || 'timed-doodle-server',
+      version: pkg.version || null,
+      commit:
+        process.env.RENDER_GIT_COMMIT ||
+        process.env.VERCEL_GIT_COMMIT ||
+        process.env.GIT_COMMIT || null,
+    });
+  });
+} catch {}
 
 const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => {
