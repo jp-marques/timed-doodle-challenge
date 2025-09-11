@@ -559,11 +559,21 @@ export default function DrawingCanvas(props: DrawingCanvasProps) {
         <div className="order-3 md:hidden">
           <div className="card w-full flex flex-col gap-2">
             <div className="flex items-center justify-between">
-              <div className="text-sm text-slate-600">Chat</div>
+              <div className="text-sm text-slate-600 flex items-center gap-2">
+                Chat
+                {chatCollapsed && unreadCount > 0 && (
+                  <span
+                    className="inline-flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] min-w-[16px] h-[16px] px-[4px] leading-none"
+                    aria-label={`${unreadCount} unread messages`}
+                  >
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
+                )}
+              </div>
               <button
                 type="button"
                 className="inline-flex items-center justify-center rounded p-1 text-slate-600 hover:text-slate-800"
-                aria-label={chatCollapsed ? 'Expand chat' : 'Collapse chat'}
+                aria-label={chatCollapsed ? `Expand chat${unreadCount > 0 ? `, ${unreadCount} unread messages` : ''}` : 'Collapse chat'}
                 aria-expanded={!chatCollapsed}
                 aria-controls="chat-content-mobile"
                 onClick={() => setChatCollapsed((v) => !v)}

@@ -13,6 +13,7 @@ import { useSocket } from './lib/useSocket';
 import { useGameStore } from './stores/game';
 import { useGameSocket } from './lib/useGameSocket';
 import { usePortraitLock } from './lib/usePortraitLock';
+import { ConfirmDialog } from './components/ui/ConfirmDialog';
 
 /* ─────────────────────────────────────────────────── */
 /*                    Component                       */
@@ -132,6 +133,35 @@ function App() {
   // Submit current canvas drawing to server
   const handleSubmitDrawing = useCallback(() => {
     if (!canvasRef.current || !socketRef.current || !roomCode) return;
+    const socket = socketRef.current;
+    if (!socket) return;
+    const submitOnce = (dataUrl: string, attempt: number) => {
+      try {
+        let settled = false;
+        const timer = window.setTimeout(() => {
+          if (settled) return;
+          // One retry on timeout
+          if (attempt < 2) submitOnce(dataUrl, attempt + 1);
+        }, 1500);
+        socket.emit(
+          Events.SubmitDrawing,
+          { code: roomCode, drawing: dataUrl },
+          (res: { ok: boolean; error?: string } | undefined) => {
+            settled = true;
+            window.clearTimeout(timer);
+            if (!res || !res.ok) {
+              // Surface a brief toast for visibility, but don't block the UI
+              const reason = res?.error || 'submit-failed';
+              useGameStore.getState().setToast(`Submit failed (${reason}).`);
+              window.setTimeout(() => useGameStore.getState().setToast(null), 2000);
+            }
+          }
+        );
+      } catch {
+        // Silent failure; a later timer-triggered auto-submit may succeed
+      }
+    };
+
     try {
       const src = canvasRef.current;
       // Downscale to a fixed 4:3 export to keep size within server limits
@@ -149,12 +179,12 @@ function App() {
       ctx.drawImage(src, 0, 0, src.width, src.height, 0, 0, EXPORT_W, EXPORT_H);
       const dataUrl = off.toDataURL('image/webp', 0.8);
       setMyDrawing(dataUrl);
-      socketRef.current.emit(Events.SubmitDrawing, { code: roomCode, drawing: dataUrl });
+      submitOnce(dataUrl, 1);
     } catch {
       // Fallback: send whatever is on the main canvas
       const dataUrl = canvasRef.current.toDataURL('image/webp', 0.8);
       setMyDrawing(dataUrl);
-      socketRef.current.emit(Events.SubmitDrawing, { code: roomCode, drawing: dataUrl });
+      submitOnce(dataUrl, 1);
     }
   }, [roomCode]);
 
@@ -386,6 +416,38 @@ function App() {
   /* --------------- Modal state ------------------------- */
   const [focusedDrawing, setFocusedDrawing] = useState<null | { id: string; url: string }> (null);
 
+  /* --------------- Server info dialog (first-load UX) ---------------- */
+  const [serverInfoOpen, setServerInfoOpen] = useState(false);
+  const [hideServerInfo, setHideServerInfo] = useState<boolean>(() => {
+    try {
+      return typeof window !== 'undefined' && window.localStorage.getItem('td.hideServerInfo') === '1';
+    } catch {
+      return false;
+    }
+  });
+  // Ensure we only consider initial load before the first successful connection
+  const hasSeenConnectRef = useRef(false);
+
+  // When we successfully connect for the first time, prevent showing the dialog again and auto-close it
+  useEffect(() => {
+    if (isConnected) {
+      hasSeenConnectRef.current = true;
+      if (serverInfoOpen) setServerInfoOpen(false);
+    }
+  }, [isConnected, serverInfoOpen]);
+
+  // If still offline after 3s on initial load, show informational dialog (unless user opted out)
+  useEffect(() => {
+    if (hideServerInfo) return; // user opted out
+    if (hasSeenConnectRef.current) return; // already connected before
+    if (isConnected) return; // already online
+
+    const t = window.setTimeout(() => {
+      if (!isConnected && !hasSeenConnectRef.current) setServerInfoOpen(true);
+    }, 3000);
+    return () => window.clearTimeout(t);
+  }, [isConnected, hideServerInfo]);
+
   /* --------------- Modal effect ------------------------- */
   useEffect(() => {
     if (!focusedDrawing) return;
@@ -517,6 +579,24 @@ function App() {
       )}
 
       {loading && <div className="overlay">Loading…</div>}
+
+      {/* Informational dialog: server warming up on free tier */}
+      <ConfirmDialog
+        open={serverInfoOpen}
+        title="Server Starting Up"
+        description={
+          "Our game server may spin down during inactivity on the free tier. It's starting up and should be ready in about 30 seconds."
+        }
+        cancelLabel="OK"
+        confirmLabel="Don't show again"
+        tone="neutral"
+        onCancel={() => setServerInfoOpen(false)}
+        onConfirm={() => {
+          try { window.localStorage.setItem('td.hideServerInfo', '1'); } catch {}
+          setHideServerInfo(true);
+          setServerInfoOpen(false);
+        }}
+      />
     </div>
   );
 }

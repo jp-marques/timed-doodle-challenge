@@ -1,6 +1,6 @@
 import ResultsGrid from './components/ResultsGrid';
 import type { Player } from '../../types';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import GameSettingsPanel from '../settings/GameSettingsPanel';
 
@@ -29,12 +29,35 @@ export function ResultsView({
 }) {
   const [confirmQuit, setConfirmQuit] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const funPhrase = useMemo(() => {
+    const options = [
+      'Sharpening pencils',
+      'Untangling spaghetti lines',
+      'Admiring masterpieces',
+      'Refilling ink',
+      'Mixing colors',
+      'Stretching doodle fingers',
+      'Polishing crowns',
+    ];
+    return options[Math.floor(Math.random() * options.length)];
+  }, []);
   return (
     <div className="w-full text-center">
       <h2 className="text-[clamp(24px,3.5vw,32px)] font-bold">Results</h2>
       <div className="text-slate-500">Prompt: <b>{prompt}</b></div>
       <ResultsGrid drawings={drawings} players={players} />
       <div className="flex flex-col items-center mt-2 gap-2">
+        {!isHost && (
+          <div className="text-slate-500 text-sm mb-1" aria-live="polite">
+            <div className="font-medium">
+              {funPhrase}
+              <span className="wait-ellipsis" aria-hidden="true"><span>.</span><span>.</span><span>.</span></span>
+            </div>
+            <div>
+              Waiting for the host to start the next round
+            </div>
+          </div>
+        )}
         {isHost && (
           <button className="btn primary cta min-w-[220px]" onClick={onStartNext}>Start Next Round</button>
         )}

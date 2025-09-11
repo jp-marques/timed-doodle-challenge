@@ -14,13 +14,35 @@ type ColorPickerProps = {
 export function ColorPicker({ value, onChange, label = 'Color', palette, isEyedropperActive, onEyedropperToggle }: ColorPickerProps): JSX.Element {
   const defaultPalette = useMemo(() => (
     [
-      // Row 1: warm → cool primaries
-      '#DC2626', '#F97316', '#F59E0B', '#16A34A', '#2563EB',
-      // Row 2: cyan/teal → purples → magenta
-      '#0EA5E9', '#14B8A6', '#8B5CF6', '#7C3AED', '#DB2777',
-      // Row 3: light fills and neutrals
-      '#FECACA', '#FED7AA', '#FEF08A', '#111827', '#6B7280',
+      // Row 1: Primaries & brights
+      '#DC2626', // Red
+      '#F97316', // Orange
+      '#F59E0B', // Yellow-Orange
+      '#16A34A', // Green
+      '#2563EB', // Blue
+    
+      // Row 2: Vibrant cools & purples
+      '#0EA5E9', // Cyan
+      '#14B8A6', // Teal
+      '#8B5CF6', // Violet
+      '#7C3AED', // Deep Purple
+      '#DB2777', // Magenta
+    
+      // Row 3: Lights & pastels
+      '#FFFFFF', // White
+      '#FECACA', // Light Pink
+      '#FDBA74', // Peach
+      '#FEF08A', // Light Yellow
+      '#E0F2FE', // Pale Blue
+    
+      // Row 4: Neutrals & dark grounding tones
+      '#111827', // Charcoal
+      '#6B7280', // Medium Gray
+      '#1E3A8A', // Navy Blue
+      '#065F46', // Forest Green
+      '#7C2D12', // Dark Brown
     ]
+    
   ), []);
   const colors = palette ?? defaultPalette;
 

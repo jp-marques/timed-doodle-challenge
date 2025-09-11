@@ -23,7 +23,7 @@ export function MenuView({
           <div className="text-slate-500 leading-relaxed mt-2">Race the clock to draw prompts with friends.</div>
 
           <div className="text-slate-500 text-sm mt-1" aria-hidden>
-            Real-time • Multiplayer • No signup
+            Instant play • Multiplayer • Zero hassle
           </div>
 
           <div className="mt-6">

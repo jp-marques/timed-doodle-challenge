@@ -41,6 +41,46 @@ const { prompts, getRandomPrompt, getRandomPromptFromCategory } = require('./pro
 const { validateNickname, validateRoomCode, validateRoundDuration } = require('./validation');
 const rooms = {};
 
+// Nickname normalization and disambiguation helpers
+function normalizeNickname(name) {
+  if (!name || typeof name !== 'string') return '';
+  return name.trim().replace(/\s+/g, ' ').toLowerCase();
+}
+function stripSuffix(raw) {
+  // Remove trailing " (n)" if present for base comparison
+  if (!raw || typeof raw !== 'string') return '';
+  const m = raw.match(/^(.*)\s*\((\d+)\)\s*$/);
+  return (m ? m[1] : raw).trim().replace(/\s+/g, ' ');
+}
+function assignUniqueNickname(preferred, existingList) {
+  // existingList: array of player objects with .nickname
+  const baseRaw = preferred || 'Player';
+  const baseDisplay = baseRaw.trim().replace(/\s+/g, ' ');
+  const baseNorm = normalizeNickname(stripSuffix(baseRaw));
+
+  // Collect taken numbers for this base (1 = unsuffixed, 2+ = with suffix)
+  const taken = new Set();
+  for (const p of Array.isArray(existingList) ? existingList : []) {
+    const n = (p && typeof p.nickname === 'string') ? p.nickname : '';
+    const pBaseDisplay = stripSuffix(n).trim().replace(/\s+/g, ' ');
+    const pBaseNorm = normalizeNickname(pBaseDisplay);
+    if (pBaseNorm !== baseNorm) continue;
+    const m = n.match(/^(.*)\s*\((\d+)\)\s*$/);
+    if (m) {
+      const num = parseInt(m[2], 10);
+      if (Number.isFinite(num) && num >= 2) taken.add(num);
+    } else {
+      taken.add(1);
+    }
+  }
+
+  // Find the smallest available number
+  if (!taken.has(1)) return baseDisplay; // "Joe"
+  let k = 2;
+  while (taken.has(k)) k++;
+  return `${baseDisplay} (${k})`; // "Joe (2)", "Joe (3)", ...
+}
+
 function publicPlayers(list) {
   return (Array.isArray(list) ? list : []).map(p => ({
     id: p.id,
@@ -212,13 +252,8 @@ io.on('connection', (socket) => {
         if (rooms[trimmedCode].players.length >= Number(process.env.MAX_PLAYERS_PER_ROOM || 12)) {
           throw new Error('Room is full');
         }
-        // Check if nickname is already taken in this room
-        const existingPlayer = rooms[trimmedCode].players.find(p => 
-          p.nickname.toLowerCase() === trimmedNickname.toLowerCase()
-        );
-        if (existingPlayer) {
-          throw new Error('Nickname is already taken in this room');
-        }
+        // Determine an available nickname deterministically: "Name", "Name (2)", ...
+        const assignedNickname = assignUniqueNickname(trimmedNickname, rooms[trimmedCode].players);
 
         // Prevent duplicate by socketId
         const dup = rooms[trimmedCode].players.find(p => p.socketId === socket.id);
@@ -229,7 +264,7 @@ io.on('connection', (socket) => {
         const player = {
           id: generateId(),
           socketId: socket.id,
-          nickname: trimmedNickname,
+          nickname: assignedNickname,
           isReady: false
         };
         rooms[trimmedCode].players.push(player);
@@ -247,7 +282,7 @@ io.on('connection', (socket) => {
         });
         if (typeof callback === 'function') {
           const token = sign(`${trimmedCode}|${player.id}`);
-          callback({ success: true, myId: player.id, token });
+          callback({ success: true, myId: player.id, token, assignedNickname });
         }
       } else {
         throw new Error('Room not found');
@@ -449,24 +484,28 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('submit-drawing', ({ code, drawing }) => {
+  socket.on('submit-drawing', ({ code, drawing }, ack) => {
     const trimmedCode = normalizeCode(code);
     const room = trimmedCode ? rooms[trimmedCode] : null;
-    if (!room) return;
+    if (!room) { if (typeof ack === 'function') ack({ ok: false, error: 'room-not-found' }); return; }
     const now = Date.now();
-    // Ignore late submissions
-    if (room.endsAt && now > room.endsAt) return;
+    // Round must be active and within time window
+    if (!room.endsAt || now > room.endsAt) {
+      if (typeof ack === 'function') ack({ ok: false, error: 'round-inactive-or-ended' });
+      return;
+    }
     // Only accept from players in the room
     const player = room.players.find(p => p.socketId === socket.id);
-    if (!player) return;
+    if (!player) { if (typeof ack === 'function') ack({ ok: false, error: 'not-in-room' }); return; }
     // Validate payload size and type
-    if (typeof drawing !== 'string' || !drawing.startsWith('data:image/')) return;
+    if (typeof drawing !== 'string' || !drawing.startsWith('data:image/')) { if (typeof ack === 'function') ack({ ok: false, error: 'invalid-type' }); return; }
     const mime = drawing.slice(5, drawing.indexOf(';'));
-    if (!['image/png', 'image/jpeg', 'image/webp'].includes(mime)) return;
+    if (!['image/png', 'image/jpeg', 'image/webp'].includes(mime)) { if (typeof ack === 'function') ack({ ok: false, error: 'unsupported-mime' }); return; }
     const b64 = drawing.slice(drawing.indexOf(',') + 1);
     const approxBytes = Math.floor(b64.length * 3 / 4);
-    if (approxBytes <= 0 || approxBytes > (Number(process.env.MAX_DRAWING_BYTES || 200 * 1024))) return;
+    if (approxBytes <= 0 || approxBytes > (Number(process.env.MAX_DRAWING_BYTES || 200 * 1024))) { if (typeof ack === 'function') ack({ ok: false, error: 'too-large' }); return; }
     room.drawings[player.id] = drawing;
+    if (typeof ack === 'function') ack({ ok: true });
     maybeEndRoundEarly(trimmedCode);
   });
 

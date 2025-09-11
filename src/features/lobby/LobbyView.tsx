@@ -60,9 +60,16 @@ export function LobbyView({
 
   function getInitials(name: string): string {
     const parts = name.trim().split(/\s+/);
-    const first = parts[0]?.[0] ?? '';
-    const second = parts.length > 1 ? parts[1][0] : '';
-    return (first + second).toUpperCase() || (name[0]?.toUpperCase() ?? '?');
+    const initials: string[] = [];
+    for (const part of parts) {
+      const match = part.match(/[A-Za-z0-9]/);
+      if (match) {
+        initials.push(match[0]);
+        if (initials.length === 2) break;
+      }
+    }
+    if (initials.length === 0) return '?';
+    return initials.join('').toUpperCase();
   }
 
   function colorForId(id: string): string {
