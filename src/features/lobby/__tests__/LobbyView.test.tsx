@@ -380,3 +380,189 @@ describe('LobbyView', () => {
     expect(execMock).toHaveBeenCalledWith('copy');
   });
 });
+
+describe('LobbyView - socket updates', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('updates player list when new player joins via socket', () => {
+    const user = userEvent.setup();
+    const initialPlayers = [
+      { id: 'h1', nickname: 'Hosty', isReady: false },
+      { id: 'a1', nickname: 'Alice', isReady: true },
+    ];
+    const { rerender } = setup({ players: initialPlayers, isHost: true, myId: 'h1', hostId: 'h1' });
+
+    // Initial state: 2 players
+    const playersList = document.querySelector('.players') as HTMLElement;
+    let rows = Array.from(playersList.querySelectorAll('.player-row')) as HTMLElement[];
+    expect(rows).toHaveLength(2);
+    expect(rows[0]).toHaveTextContent(/Hosty/);
+    expect(rows[1]).toHaveTextContent(/Alice/);
+
+    // Simulate socket update: new player joins
+    const updatedPlayers = [
+      { id: 'h1', nickname: 'Hosty', isReady: false },
+      { id: 'a1', nickname: 'Alice', isReady: true },
+      { id: 'b1', nickname: 'Bob', isReady: false },
+    ];
+    rerender(
+      <LobbyView
+        players={updatedPlayers}
+        roomCode={'ABCD'}
+        isHost={true}
+        roundDuration={60}
+        onRoundDurationChange={vi.fn()}
+        onStart={vi.fn()}
+        onToggleReady={vi.fn()}
+        onQuit={vi.fn()}
+        myId={'h1'}
+        hostId={'h1'}
+      />
+    );
+
+    // Verify new player appears in correct sorted order (host first, then ready, then alphabetical)
+    const updatedPlayersList = document.querySelector('.players') as HTMLElement;
+    rows = Array.from(updatedPlayersList.querySelectorAll('.player-row')) as HTMLElement[];
+    expect(rows).toHaveLength(3);
+    expect(rows[0]).toHaveTextContent(/Hosty/); // Host first
+    expect(rows[1]).toHaveTextContent(/Alice/); // Ready user
+    expect(rows[2]).toHaveTextContent(/Bob/); // Not ready, alphabetical after Alice
+  });
+
+  it('updates player list when player leaves via socket', () => {
+    const initialPlayers = [
+      { id: 'h1', nickname: 'Hosty', isReady: false },
+      { id: 'a1', nickname: 'Alice', isReady: true },
+      { id: 'b1', nickname: 'Bob', isReady: false },
+    ];
+    const { rerender } = setup({ players: initialPlayers, isHost: true, myId: 'h1', hostId: 'h1' });
+
+    // Initial state: 3 players
+    const playersList = document.querySelector('.players') as HTMLElement;
+    let rows = Array.from(playersList.querySelectorAll('.player-row')) as HTMLElement[];
+    expect(rows).toHaveLength(3);
+
+    // Simulate socket update: Alice leaves
+    const updatedPlayers = [
+      { id: 'h1', nickname: 'Hosty', isReady: false },
+      { id: 'b1', nickname: 'Bob', isReady: false },
+    ];
+    rerender(
+      <LobbyView
+        players={updatedPlayers}
+        roomCode={'ABCD'}
+        isHost={true}
+        roundDuration={60}
+        onRoundDurationChange={vi.fn()}
+        onStart={vi.fn()}
+        onToggleReady={vi.fn()}
+        onQuit={vi.fn()}
+        myId={'h1'}
+        hostId={'h1'}
+      />
+    );
+
+    // Verify Alice is gone, Bob remains
+    const updatedPlayersList = document.querySelector('.players') as HTMLElement;
+    rows = Array.from(updatedPlayersList.querySelectorAll('.player-row')) as HTMLElement[];
+    expect(rows).toHaveLength(2);
+    expect(rows[0]).toHaveTextContent(/Hosty/);
+    expect(rows[1]).toHaveTextContent(/Bob/);
+  });
+
+  it('updates host badge and ready count when host changes via socket', () => {
+    const initialPlayers = [
+      { id: 'h1', nickname: 'Hosty', isReady: false },
+      { id: 'a1', nickname: 'Alice', isReady: true },
+      { id: 'b1', nickname: 'Bob', isReady: false },
+    ];
+    const { rerender } = setup({ players: initialPlayers, isHost: true, myId: 'h1', hostId: 'h1' });
+
+    // Initial state: Hosty is host
+    const playersList = document.querySelector('.players') as HTMLElement;
+    let rows = Array.from(playersList.querySelectorAll('.player-row')) as HTMLElement[];
+    expect(within(rows[0]).getByText(/^host$/i)).toBeInTheDocument();
+
+    // Ready count: 2/3 (host counts as ready even if not marked)
+    expect(screen.getAllByText(/2\/3 ready/i).length).toBeGreaterThan(0);
+
+    // Simulate socket update: Hosty leaves, Alice becomes host
+    const updatedPlayers = [
+      { id: 'a1', nickname: 'Alice', isReady: true },
+      { id: 'b1', nickname: 'Bob', isReady: false },
+    ];
+    rerender(
+      <LobbyView
+        players={updatedPlayers}
+        roomCode={'ABCD'}
+        isHost={false} // No longer host
+        roundDuration={60}
+        onRoundDurationChange={vi.fn()}
+        onStart={vi.fn()}
+        onToggleReady={vi.fn()}
+        onQuit={vi.fn()}
+        myId={'h1'} // Still same user ID
+        hostId={'a1'} // New host
+      />
+    );
+
+    // Verify Alice now has host badge, ready count updates to 1/2
+    const updatedPlayersList = document.querySelector('.players') as HTMLElement;
+    rows = Array.from(updatedPlayersList.querySelectorAll('.player-row')) as HTMLElement[];
+    expect(rows).toHaveLength(2);
+    expect(rows[0]).toHaveTextContent(/Alice/); // Alice is now first (host)
+    expect(within(rows[0]).getByText(/^host$/i)).toBeInTheDocument();
+    expect(rows[1]).toHaveTextContent(/Bob/);
+    expect(within(rows[1]).getByText(/not ready/i)).toBeInTheDocument();
+
+    // Ready count: 1/2 (Alice is host and ready, Bob is not ready)
+    expect(screen.getAllByText(/1\/2 ready/i).length).toBeGreaterThan(0);
+  });
+
+  it('updates ready badges when player toggles ready state via socket', () => {
+    const initialPlayers = [
+      { id: 'h1', nickname: 'Hosty', isReady: false },
+      { id: 'a1', nickname: 'Alice', isReady: false },
+    ];
+    const { rerender } = setup({ players: initialPlayers, isHost: true, myId: 'h1', hostId: 'h1' });
+
+    // Initial state: both not ready
+    const playersList = document.querySelector('.players') as HTMLElement;
+    let rows = Array.from(playersList.querySelectorAll('.player-row')) as HTMLElement[];
+    expect(within(rows[0]).getByText(/^host$/i)).toBeInTheDocument(); // Hosty has host badge
+    expect(within(rows[1]).getByText(/not ready/i)).toBeInTheDocument();
+
+    // Simulate socket update: Alice becomes ready
+    const updatedPlayers = [
+      { id: 'h1', nickname: 'Hosty', isReady: false },
+      { id: 'a1', nickname: 'Alice', isReady: true },
+    ];
+    rerender(
+      <LobbyView
+        players={updatedPlayers}
+        roomCode={'ABCD'}
+        isHost={true}
+        roundDuration={60}
+        onRoundDurationChange={vi.fn()}
+        onStart={vi.fn()}
+        onToggleReady={vi.fn()}
+        onQuit={vi.fn()}
+        myId={'h1'}
+        hostId={'h1'}
+      />
+    );
+
+    // Verify Alice's badge updates to "Ready"
+    const updatedPlayersList = document.querySelector('.players') as HTMLElement;
+    rows = Array.from(updatedPlayersList.querySelectorAll('.player-row')) as HTMLElement[];
+    expect(within(rows[0]).getByText(/^host$/i)).toBeInTheDocument(); // Hosty still host
+    expect(within(rows[1]).getByText(/ready/i)).toBeInTheDocument(); // Alice now ready
+    expect(within(rows[1]).getByText(/^ready$/i)).toBeInTheDocument(); // Exact text to avoid matching "not ready"
+  });
+
+});
