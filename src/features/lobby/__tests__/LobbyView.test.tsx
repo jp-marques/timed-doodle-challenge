@@ -390,7 +390,6 @@ describe('LobbyView - socket updates', () => {
   });
 
   it('updates player list when new player joins via socket', () => {
-    const user = userEvent.setup();
     const initialPlayers = [
       { id: 'h1', nickname: 'Hosty', isReady: false },
       { id: 'a1', nickname: 'Alice', isReady: true },
